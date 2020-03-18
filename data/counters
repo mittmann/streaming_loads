@@ -8,3 +8,4 @@ LLC-stores
 L1-dcache-load-misses
 l1d.replacement
 l2_lines_in.all
+offcore_requests.demand_data_rd
