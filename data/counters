@@ -1,0 +1,10 @@
+cpu-cycles
+mem_load_retired.l3_miss
+mem_load_retired.l3_hit
+LLC-load-misses
+LLC-loads
+LLC-store-misses
+LLC-stores
+L1-dcache-load-misses
+l1d.replacement
+l2_lines_in.all
