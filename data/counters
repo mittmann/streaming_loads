@@ -9,3 +9,6 @@ L1-dcache-load-misses
 l1d.replacement
 l2_lines_in.all
 offcore_requests.demand_data_rd
+offcore_requests.all_data_rd 
+ocr.pf_l3_data_rd.l3_miss.any_snoop 
+l2_rqsts.pf_hit
