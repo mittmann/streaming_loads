@@ -1,0 +1,11 @@
+cpu-cycles
+cycle_activity.stalls_ldm_pending 
+cycle_activity.stalls_l1d_pending 
+resource_stalls.any
+uops_retired.stall_cycles
+L1-dcache-load-misses
+L1-dcache-loads
+l2_rqsts.demand_data_rd_miss 
+l2_rqsts.all_demand_data_rd
+LLC-load-misses
+LLC-loads
