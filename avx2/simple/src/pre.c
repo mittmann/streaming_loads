@@ -19,7 +19,7 @@ int main(int argc, char **argv){
 	}
 
 	_mm_mfence();
-	return (int)acc + (int)mem[0][0] + (int)mem[ARRAY_SIZE/2][3] + (int)mem[ARRAY_SIZE-1][4];
+	return (int)acc;
 	for(int i=0; i < ARRAY_SIZE; i++)
 	{
 		local = _mm256_stream_load_si256(&mem[i]);

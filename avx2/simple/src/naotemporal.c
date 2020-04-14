@@ -27,5 +27,5 @@ int main(int argc, char **argv){
 	}
 	_mm_mfence();
 
-	return (int)acc + (int)mem[0][0] + (int)mem[ARRAY_SIZE/2][3] + (int)mem[ARRAY_SIZE-1][4];
+	return (int)acc;
 }
