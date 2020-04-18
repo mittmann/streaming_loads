@@ -1,7 +1,5 @@
 	.file	"rep.nt.small.c"
 	.text
-	.section	.text.startup,"ax",@progbits
-	.p2align 4
 	.globl	main
 	.type	main, @function
 main:
@@ -11,24 +9,23 @@ main:
 	pushq	%rbp
 	.cfi_def_cfa_offset 16
 	.cfi_offset 6, -16
-	movl	$6291456, %esi
-	movl	$64, %edi
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
 	andq	$-32, %rsp
+	movl	$6291456, %esi
+	movl	$64, %edi
 	call	aligned_alloc@PLT
 	movq	%rax, %r8
-	movq	%rax, %rdx
-	xorl	%eax, %eax
+	movq	%rax, %rcx
+	movl	$0, %edx
 .L2:
-	movq	%rax, (%rdx)
-	addq	$1, %rax
-	addq	$32, %rdx
-	cmpq	$196608, %rax
+	movq	%rdx, (%rcx)
+	addq	$1, %rdx
+	addq	$32, %rcx
+	cmpq	$196608, %rdx
 	jne	.L2
 	mfence
-	leaq	6291456(%r8), %rsi
-	movq	%r8, %rax
+	leaq	6291456(%rax), %rsi
 .L3:
 	clflush	(%rax)
 	addq	$32, %rax
@@ -36,22 +33,23 @@ main:
 	jne	.L3
 	mfence
 	movl	$10000, %edi
-	xorl	%eax, %eax
+	movl	$0, %eax
+	jmp	.L4
+.L11:
+	subl	$1, %edi
+	je	.L6
 .L4:
 	movq	%r8, %rcx
-	.p2align 4,,10
-	.p2align 3
 .L5:
 	vmovntdqa	(%rcx), %ymm0
-	addq	$32, %rcx
 	vmovq	%xmm0, %rdx
 	addq	%rdx, %rax
+	addq	$32, %rcx
 	cmpq	%rcx, %rsi
 	jne	.L5
-	subl	$1, %edi
-	jne	.L4
+	jmp	.L11
+.L6:
 	mfence
-	vzeroupper
 	leave
 	.cfi_def_cfa 7, 8
 	ret

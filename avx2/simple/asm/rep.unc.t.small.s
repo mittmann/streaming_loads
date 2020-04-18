@@ -8,7 +8,6 @@
 .LC2:
 	.string	"mmap failed."
 	.text
-	.p2align 4
 	.globl	get_uncached_mem
 	.type	get_uncached_mem, @function
 get_uncached_mem:
@@ -18,38 +17,40 @@ get_uncached_mem:
 	pushq	%r12
 	.cfi_def_cfa_offset 16
 	.cfi_offset 12, -16
-	xorl	%edx, %edx
-	xorl	%eax, %eax
 	pushq	%rbp
 	.cfi_def_cfa_offset 24
 	.cfi_offset 6, -24
-	movl	%esi, %ebp
-	movl	$2, %esi
 	pushq	%rbx
 	.cfi_def_cfa_offset 32
 	.cfi_offset 3, -32
+	movl	%esi, %ebx
+	movl	$0, %edx
+	movl	$2, %esi
+	movl	$0, %eax
 	call	open@PLT
-	movl	%eax, %r12d
+	movl	%eax, %ebp
 	cmpl	$-1, %eax
-	je	.L10
+	je	.L6
 .L2:
 	movl	$30, %edi
 	call	sysconf@PLT
-	movslq	%ebp, %rsi
 	subq	$1, %rax
-	testq	%rsi, %rax
-	jne	.L11
+	movslq	%ebx, %rdx
+	testq	%rdx, %rax
+	jne	.L7
 .L3:
-	movl	%r12d, %r8d
-	xorl	%r9d, %r9d
+	movslq	%ebx, %rsi
+	movl	$0, %r9d
+	movl	%ebp, %r8d
 	movl	$1, %ecx
 	movl	$3, %edx
-	xorl	%edi, %edi
+	movl	$0, %edi
 	call	mmap@PLT
-	movq	%rax, %r12
+	movq	%rax, %rbx
 	cmpq	$-1, %rax
-	je	.L12
-	movq	%r12, %rax
+	je	.L8
+.L1:
+	movq	%rbx, %rax
 	popq	%rbx
 	.cfi_remember_state
 	.cfi_def_cfa_offset 24
@@ -58,53 +59,38 @@ get_uncached_mem:
 	popq	%r12
 	.cfi_def_cfa_offset 8
 	ret
-	.p2align 4,,10
-	.p2align 3
-.L11:
+.L6:
 	.cfi_restore_state
-	movl	$30, %edi
-	call	sysconf@PLT
-	movl	$30, %edi
-	movq	%rax, %rbx
-	call	sysconf@PLT
-	negl	%ebx
-	andl	%ebp, %ebx
-	leal	(%rbx,%rax), %esi
-	movslq	%esi, %rsi
-	jmp	.L3
-	.p2align 4,,10
-	.p2align 3
-.L10:
 	leaq	.LC0(%rip), %rdx
 	leaq	.LC1(%rip), %rsi
 	movl	$1, %edi
-	xorl	%eax, %eax
+	movl	$0, %eax
 	call	__printf_chk@PLT
 	jmp	.L2
-	.p2align 4,,10
-	.p2align 3
-.L12:
+.L7:
+	movl	$30, %edi
+	call	sysconf@PLT
+	movq	%rax, %r12
+	movl	$30, %edi
+	call	sysconf@PLT
+	negl	%r12d
+	andl	%r12d, %ebx
+	addl	%eax, %ebx
+	jmp	.L3
+.L8:
 	leaq	.LC2(%rip), %rdx
 	leaq	.LC1(%rip), %rsi
 	movl	$1, %edi
-	xorl	%eax, %eax
+	movl	$0, %eax
 	call	__printf_chk@PLT
-	movq	%r12, %rax
-	popq	%rbx
-	.cfi_def_cfa_offset 24
-	popq	%rbp
-	.cfi_def_cfa_offset 16
-	popq	%r12
-	.cfi_def_cfa_offset 8
-	ret
+	jmp	.L1
 	.cfi_endproc
 .LFE5320:
 	.size	get_uncached_mem, .-get_uncached_mem
 	.section	.rodata.str1.1
 .LC3:
 	.string	"dev"
-	.section	.text.startup,"ax",@progbits
-	.p2align 4
+	.text
 	.globl	main
 	.type	main, @function
 main:
@@ -114,44 +100,45 @@ main:
 	pushq	%rbp
 	.cfi_def_cfa_offset 16
 	.cfi_offset 6, -16
-	leaq	.LC3(%rip), %rdi
-	movl	$6291456, %esi
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
 	andq	$-32, %rsp
+	movl	$6291456, %esi
+	leaq	.LC3(%rip), %rdi
 	call	get_uncached_mem
 	mfence
 	movq	%rax, %rdi
-	movq	%rax, %rdx
-	xorl	%eax, %eax
-.L14:
-	movq	%rax, (%rdx)
-	addq	$1, %rax
-	addq	$32, %rdx
-	cmpq	$196608, %rax
-	jne	.L14
+	movq	%rax, %rcx
+	movl	$0, %edx
+.L10:
+	movq	%rdx, (%rcx)
+	addq	$1, %rdx
+	addq	$32, %rcx
+	cmpq	$196608, %rdx
+	jne	.L10
 	mfence
-	leaq	6291456(%rdi), %rcx
-	movq	%rdi, %rax
-.L15:
+	leaq	6291456(%rax), %rcx
+.L11:
 	clflush	(%rax)
 	addq	$32, %rax
 	cmpq	%rax, %rcx
-	jne	.L15
+	jne	.L11
 	mfence
 	movl	$10000, %esi
-	xorl	%eax, %eax
-.L16:
+	movl	$0, %eax
+	jmp	.L12
+.L19:
+	subl	$1, %esi
+	je	.L14
+.L12:
 	movq	%rdi, %rdx
-	.p2align 4,,10
-	.p2align 3
-.L17:
+.L13:
 	addq	(%rdx), %rax
 	addq	$32, %rdx
 	cmpq	%rcx, %rdx
-	jne	.L17
-	subl	$1, %esi
-	jne	.L16
+	jne	.L13
+	jmp	.L19
+.L14:
 	mfence
 	leave
 	.cfi_def_cfa 7, 8

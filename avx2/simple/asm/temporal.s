@@ -1,7 +1,5 @@
 	.file	"temporal.c"
 	.text
-	.section	.text.startup,"ax",@progbits
-	.p2align 4
 	.globl	main
 	.type	main, @function
 main:
@@ -24,8 +22,6 @@ main:
 	movq	%fs:40, %rax
 	movq	%rax, 8355864(%rsp)
 	xorl	%eax, %eax
-	.p2align 4,,10
-	.p2align 3
 .L2:
 	movslq	%eax, %rdx
 	salq	$5, %rdx
@@ -37,17 +33,13 @@ main:
 	movq	%rsp, %rdx
 	leaq	8355840(%rsp), %rcx
 	movq	%rdx, %rax
-	.p2align 4,,10
-	.p2align 3
 .L3:
 	clflush	(%rax)
 	addq	$32, %rax
 	cmpq	%rcx, %rax
 	jne	.L3
 	mfence
-	xorl	%eax, %eax
-	.p2align 4,,10
-	.p2align 3
+	movl	$0, %eax
 .L4:
 	addq	(%rdx), %rax
 	addq	$32, %rdx
@@ -56,12 +48,12 @@ main:
 	mfence
 	movq	8355864(%rsp), %rsi
 	xorq	%fs:40, %rsi
-	jne	.L12
+	jne	.L10
 	leave
 	.cfi_remember_state
 	.cfi_def_cfa 7, 8
 	ret
-.L12:
+.L10:
 	.cfi_restore_state
 	call	__stack_chk_fail@PLT
 	.cfi_endproc
