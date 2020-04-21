@@ -219,7 +219,7 @@ main:
 	je	.L39
 	movq	%r12, %rdi
 	leaq	.LC7(%rip), %rsi
-	movl	$10000, %r13d
+	movl	$20000, %r13d
 	movl	$196608, %r12d
 	call	strcmp@PLT
 	testl	%eax, %eax
@@ -240,7 +240,7 @@ main:
 	leaq	.LC11(%rip), %rdi
 	call	fail
 .L38:
-	movl	$40, %r13d
+	movl	$80, %r13d
 	movl	$49152000, %r12d
 	jmp	.L17
 .L60:
@@ -416,7 +416,7 @@ main:
 	je	.L23
 	jmp	.L48
 .L39:
-	movl	$500, %r13d
+	movl	$1000, %r13d
 	movl	$3932160, %r12d
 	jmp	.L17
 .L58:

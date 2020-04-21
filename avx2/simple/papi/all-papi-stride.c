@@ -35,9 +35,9 @@ void *get_uncached_mem(char *dev, int size)
 #define ARRAY_HUGE 1024*192*250 //1500MB
 #define ARRAY_BIG 1024*192*20 //120MB
 #define ARRAY_SMALL 1024*192 //6MB
-#define REP_HUGE 40
-#define REP_BIG 500
-#define REP_SMALL 10000
+#define REP_HUGE 80
+#define REP_BIG 1000
+#define REP_SMALL 20000
 
 int main(int ac, char **av)
 {
