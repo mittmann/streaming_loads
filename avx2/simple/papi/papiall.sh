@@ -7,10 +7,10 @@ fi
 for size in small big huge; do
 	for memtyp in wb unc; do
 		for temp in t nt; do
-			value=`./e.O0 $size $memtyp $temp $stat | grep PAPI_VALUE | awk '{print $2}'`
-			echo $stat,$size,$memtyp,$temp,O0,${value}
-			value=`./e.O2 $size $memtyp $temp $stat | grep PAPI_VALUE | awk '{print $2}'`
-			echo $stat,$size,$memtyp,$temp,O2,${value}
+#			value=`./e.O0 $size $memtyp $temp $stat | grep PAPI_VALUE | awk '{print $2}'`
+#			echo $stat,$size,$memtyp,$temp,O0,${value}
+			value=`./e.O2.64 $size $memtyp $temp $stat | grep PAPI_VALUE | awk '{print $2}'`
+			echo $stat,$size,$memtyp,$temp,O2.64,${value}
 		done
 	done
 done
