@@ -77,7 +77,9 @@ int main(int ac, char **av)
 
 
 	if(!strcmp(av[2],"unc")) 
-		map = get_uncached_mem("dev", size*32);
+		map = get_uncached_mem("unc", size*32);
+	else if(!strcmp(av[2],"wc")) 
+		map = get_uncached_mem("wc", size*32);
 	else if(!strcmp(av[2],"wb"))
 		map = aligned_alloc(64,size*32);
 	else
@@ -126,10 +128,10 @@ int main(int ac, char **av)
 		for(int j=0;j<reps;j++)
 			for(int i=0; i<size; i+=2)
 			{
-				local = _mm256_load_si256(&mem[i]);
+				local  = _mm256_load_si256(&mem[i]);
 				local2 = _mm256_load_si256(&mem[i+1]);
-				local = _mm256_add_epi64(local2, local);
-				acc = _mm256_add_epi64(acc, local);
+				local  = _mm256_add_epi64(local, local2);
+				acc    = _mm256_add_epi64(acc, local);
 			}
 	}
 	else
@@ -137,10 +139,10 @@ int main(int ac, char **av)
 		for(int j=0;j<reps;j++)
 			for(int i=0; i<size; i+=2)
 			{
-				local = _mm256_load_si256(&mem[i]);
-				local2 = _mm256_load_si256(&mem[i+1]);
-				local = _mm256_add_epi64(local2, local);
-				acc = _mm256_add_epi64(acc, local);
+				local  = _mm256_stream_load_si256(&mem[i]);
+				local2 = _mm256_stream_load_si256(&mem[i+1]);
+				local  = _mm256_add_epi64(local, local2);
+				acc    = _mm256_add_epi64(acc, local);
 			}
 	}
 	_mm_mfence();

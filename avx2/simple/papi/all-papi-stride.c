@@ -76,7 +76,9 @@ int main(int ac, char **av)
 
 
 	if(!strcmp(av[2],"unc")) 
-		map = get_uncached_mem("dev", size*32);
+		map = get_uncached_mem("unc", size*32);
+	else if(!strcmp(av[2],"wc")) 
+		map = get_uncached_mem("wc", size*32);
 	else if(!strcmp(av[2],"wb"))
 		map = aligned_alloc(64,size*32);
 	else

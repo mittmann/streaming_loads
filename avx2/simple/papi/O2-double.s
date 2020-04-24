@@ -144,29 +144,31 @@ get_uncached_mem:
 .LC9:
 	.string	"unc"
 .LC10:
-	.string	"dev"
+	.string	"wc"
 .LC11:
-	.string	"tipo de mem invalido"
+	.string	"wb"
 .LC12:
+	.string	"tipo de mem invalido"
+.LC13:
 	.string	"temporalidade invalida"
 	.section	.rodata.str1.8
 	.align 8
-.LC13:
+.LC14:
 	.string	"PAPI_event_name_to_code falhou"
 	.section	.rodata.str1.1
-.LC14:
-	.string	"PAPI_create_eventset falhou"
 .LC15:
-	.string	"PAPI_add_events falhou"
+	.string	"PAPI_create_eventset falhou"
 .LC16:
-	.string	"PAPI_start falhou"
+	.string	"PAPI_add_events falhou"
 .LC17:
-	.string	"PAPI_stop falhou"
+	.string	"PAPI_start falhou"
 .LC18:
-	.string	"reps: %d, size: %ld\n"
+	.string	"PAPI_stop falhou"
 .LC19:
-	.string	"acc: %llu, %llu, %llu, %llu\n"
+	.string	"reps: %d, size: %ld\n"
 .LC20:
+	.string	"acc: %llu, %llu, %llu, %llu\n"
+.LC21:
 	.string	"PAPI_VALUE: %llu\n"
 	.section	.text.startup,"ax",@progbits
 	.p2align 4
@@ -202,7 +204,7 @@ main:
 	movl	$-1, 44(%rsp)
 	call	PAPI_library_init@PLT
 	cmpl	$5, %r12d
-	jne	.L57
+	jne	.L58
 	movq	8(%rbx), %r12
 	movl	$5, %ecx
 	leaq	.LC5(%rip), %rdi
@@ -211,92 +213,74 @@ main:
 	seta	%al
 	sbbb	$0, %al
 	testb	%al, %al
-	je	.L38
+	je	.L39
 	leaq	.LC6(%rip), %rsi
 	movq	%r12, %rdi
 	call	strcmp@PLT
 	testl	%eax, %eax
-	je	.L39
+	je	.L40
 	movq	%r12, %rdi
 	leaq	.LC7(%rip), %rsi
 	movl	$10000, %r13d
 	movl	$196608, %r12d
 	call	strcmp@PLT
 	testl	%eax, %eax
-	jne	.L58
+	jne	.L59
 .L17:
-	movq	16(%rbx), %rdx
+	movq	16(%rbx), %r8
+	leaq	.LC9(%rip), %r9
 	movl	$4, %ecx
-	leaq	.LC9(%rip), %rdi
-	movq	%rdx, %rsi
+	movq	%r9, %rdi
+	movq	%r8, %rsi
 	repz cmpsb
 	seta	%al
 	sbbb	$0, %al
 	testb	%al, %al
-	je	.L59
-	cmpb	$119, (%rdx)
 	je	.L60
+	cmpb	$119, (%r8)
+	jne	.L21
+	cmpb	$99, 1(%r8)
+	je	.L61
 .L21:
-	leaq	.LC11(%rip), %rdi
-	call	fail
-.L38:
-	movl	$40, %r13d
-	movl	$49152000, %r12d
-	jmp	.L17
-.L60:
-	cmpb	$98, 1(%rdx)
-	jne	.L21
-	cmpb	$0, 2(%rdx)
-	jne	.L21
+	leaq	.LC11(%rip), %rsi
+	movq	%r8, %rdi
+	call	strcmp@PLT
+	testl	%eax, %eax
+	jne	.L22
 	movq	%r12, %rsi
 	movl	$64, %edi
 	salq	$5, %rsi
 	call	aligned_alloc@PLT
 	movq	%rax, %r14
+.L19:
 	movq	24(%rbx), %rax
 	cmpb	$110, (%rax)
-	je	.L61
-.L47:
-	cmpb	$116, (%rax)
-	je	.L62
-.L48:
-	leaq	.LC12(%rip), %rdi
-	call	fail
-.L59:
-	movl	%r12d, %esi
-	leaq	.LC10(%rip), %rdi
-	sall	$5, %esi
-	call	get_uncached_mem
-	movq	%rax, %r14
-	movq	24(%rbx), %rax
-	cmpb	$110, (%rax)
-	jne	.L47
-.L61:
+	jne	.L48
 	cmpb	$116, 1(%rax)
-	jne	.L47
+	jne	.L48
 	movzbl	2(%rax), %r15d
 	testl	%r15d, %r15d
-	jne	.L47
-.L23:
+	jne	.L48
+.L24:
 	movq	32(%rbx), %rdi
 	leaq	40(%rsp), %rsi
 	call	PAPI_event_name_to_code@PLT
 	testl	%eax, %eax
-	jne	.L63
+	jne	.L62
 	mfence
 	movq	%r14, %rdx
 	xorl	%eax, %eax
 	.p2align 4,,10
 	.p2align 3
-.L26:
-	vmovq	%rax, %xmm2
+.L27:
+	vmovq	%rax, %xmm3
 	movq	%rax, %rcx
 	addq	$1, %rax
 	addq	$32, %rdx
-	vpbroadcastq	%xmm2, %ymm0
+	vpbroadcastq	%xmm3, %ymm0
 	vmovntdq	%ymm0, -32(%rdx)
 	cmpq	%rax, %r12
-	jne	.L26
+	jne	.L27
 	mfence
 	shrq	%rcx
 	movq	%r14, %rax
@@ -305,45 +289,45 @@ main:
 	addq	%r14, %rbx
 	.p2align 4,,10
 	.p2align 3
-.L27:
+.L28:
 	clflush	(%rax)
 	addq	$64, %rax
 	cmpq	%rax, %rbx
-	jne	.L27
+	jne	.L28
 	mfence
 	leaq	44(%rsp), %rdi
 	vzeroupper
 	call	PAPI_create_eventset@PLT
 	testl	%eax, %eax
-	jne	.L64
+	jne	.L63
 	movl	40(%rsp), %esi
 	movl	44(%rsp), %edi
 	call	PAPI_add_event@PLT
 	testl	%eax, %eax
-	jne	.L65
+	jne	.L64
 	movl	44(%rsp), %edi
 	call	PAPI_start@PLT
 	testl	%eax, %eax
-	jne	.L66
+	jne	.L65
 	vpxor	%xmm0, %xmm0, %xmm0
 	testl	%r15d, %r15d
-	je	.L32
+	je	.L33
 	.p2align 4,,10
 	.p2align 3
-.L31:
+.L32:
 	movq	%r14, %rdx
 	.p2align 4,,10
 	.p2align 3
-.L33:
-	vpaddq	32(%rdx), %ymm0, %ymm0
+.L34:
+	vpaddq	(%rdx), %ymm0, %ymm0
 	addq	$64, %rdx
-	vpaddq	-64(%rdx), %ymm0, %ymm0
+	vpaddq	-32(%rdx), %ymm0, %ymm0
 	cmpq	%rdx, %rbx
-	jne	.L33
+	jne	.L34
 	addl	$1, %eax
 	cmpl	%eax, %r13d
-	jne	.L31
-.L46:
+	jne	.L32
+.L47:
 	vmovdqa	%ymm0, (%rsp)
 	leaq	48(%rsp), %rsi
 	mfence
@@ -351,7 +335,7 @@ main:
 	vzeroupper
 	call	PAPI_stop@PLT
 	testl	%eax, %eax
-	jne	.L67
+	jne	.L66
 	movl	40(%rsp), %esi
 	movl	44(%rsp), %edi
 	call	PAPI_remove_event@PLT
@@ -359,29 +343,29 @@ main:
 	movq	%r12, %rcx
 	movl	%r13d, %edx
 	movl	$1, %edi
-	leaq	.LC18(%rip), %rsi
-	xorl	%eax, %eax
-	call	__printf_chk@PLT
-	vmovdqa	(%rsp), %ymm3
 	leaq	.LC19(%rip), %rsi
 	xorl	%eax, %eax
+	call	__printf_chk@PLT
+	vmovdqa	(%rsp), %ymm4
+	leaq	.LC20(%rip), %rsi
+	xorl	%eax, %eax
 	movl	$1, %edi
-	vextracti128	$0x1, %ymm3, %xmm0
-	vmovq	%xmm3, %rbx
-	vpextrq	$1, %xmm3, %rcx
+	vextracti128	$0x1, %ymm4, %xmm0
+	vmovq	%xmm4, %rbx
+	vpextrq	$1, %xmm4, %rcx
 	vpextrq	$1, %xmm0, %r9
 	vmovq	%xmm0, %r8
-	vmovq	%xmm3, %rdx
+	vmovq	%xmm4, %rdx
 	vzeroupper
 	call	__printf_chk@PLT
 	movq	48(%rsp), %rdx
 	xorl	%eax, %eax
-	leaq	.LC20(%rip), %rsi
+	leaq	.LC21(%rip), %rsi
 	movl	$1, %edi
 	call	__printf_chk@PLT
 	movq	56(%rsp), %rax
 	xorq	%fs:40, %rax
-	jne	.L68
+	jne	.L67
 	leaq	-40(%rbp), %rsp
 	movl	%ebx, %eax
 	popq	%rbx
@@ -393,54 +377,87 @@ main:
 	.cfi_remember_state
 	.cfi_def_cfa 7, 8
 	ret
+.L39:
+	.cfi_restore_state
+	movl	$40, %r13d
+	movl	$49152000, %r12d
+	jmp	.L17
 	.p2align 4,,10
 	.p2align 3
-.L69:
-	.cfi_restore_state
+.L68:
 	addl	$1, %r15d
 	cmpl	%r15d, %r13d
-	je	.L46
-.L32:
+	je	.L47
+.L33:
 	movq	%r14, %rax
 	.p2align 4,,10
 	.p2align 3
-.L35:
-	vpaddq	(%rax), %ymm0, %ymm0
+.L36:
+	vmovntdqa	(%rax), %ymm1
+	vmovntdqa	32(%rax), %ymm2
 	addq	$64, %rax
-	vpaddq	-32(%rax), %ymm0, %ymm0
+	vpaddq	%ymm2, %ymm1, %ymm1
+	vpaddq	%ymm0, %ymm1, %ymm0
 	cmpq	%rax, %rbx
-	jne	.L35
-	jmp	.L69
-.L62:
+	jne	.L36
+	jmp	.L68
+	.p2align 4,,10
+	.p2align 3
+.L48:
+	cmpb	$116, (%rax)
+	je	.L69
+.L49:
+	leaq	.LC13(%rip), %rdi
+	call	fail
+.L69:
 	cmpb	$0, 1(%rax)
 	movl	$1, %r15d
-	je	.L23
-	jmp	.L48
-.L39:
+	je	.L24
+	jmp	.L49
+.L60:
+	movl	%r12d, %esi
+	movq	%r9, %rdi
+	sall	$5, %esi
+	call	get_uncached_mem
+	movq	%rax, %r14
+	jmp	.L19
+.L40:
 	movl	$500, %r13d
 	movl	$3932160, %r12d
 	jmp	.L17
-.L58:
+.L61:
+	cmpb	$0, 2(%r8)
+	jne	.L21
+	movl	%r12d, %esi
+	leaq	.LC10(%rip), %rdi
+	sall	$5, %esi
+	call	get_uncached_mem
+	movq	%rax, %r14
+	jmp	.L19
+.L59:
 	leaq	.LC8(%rip), %rdi
 	call	fail
-.L63:
-	leaq	.LC13(%rip), %rdi
+.L22:
+	leaq	.LC12(%rip), %rdi
 	call	fail
-.L64:
+.L62:
 	leaq	.LC14(%rip), %rdi
 	call	fail
-.L65:
+.L63:
 	leaq	.LC15(%rip), %rdi
 	call	fail
-.L66:
+.L64:
 	leaq	.LC16(%rip), %rdi
 	call	fail
-.L67:
+.L65:
 	leaq	.LC17(%rip), %rdi
 	call	fail
-.L68:
+.L66:
+	leaq	.LC18(%rip), %rdi
+	call	fail
+.L67:
 	call	__stack_chk_fail@PLT
-.L57:
+.L58:
 	leaq	.LC4(%rip), %rdi
 	call	fail
 	.cfi_endproc
