@@ -1,7 +1,7 @@
 library(dplyr);
 library(ggplot2);
 
-df <- read.csv("saida.csv");
+df <- read.csv("pchase.csv");
 
 
 k <- df %>% select(counter,size,memtype,temp,opt,value) %>% 
