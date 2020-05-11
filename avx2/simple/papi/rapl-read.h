@@ -25,7 +25,12 @@
 /*									*/
 /* Vince Weaver -- vincent.weaver @ maine.edu -- 11 September 2015	*/
 /*									*/
-
+#ifdef VERBOSE
+	#define verbose 1
+#endif
+#ifndef VERBOSE
+	#define verbose 0
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -36,6 +41,12 @@
 #include <unistd.h>
 #include <math.h>
 #include <string.h>
+#include <pthread.h>
+
+#define MAX_CPUS	1024
+#define MAX_PACKAGES	16
+
+#define core 0 //default core to read the msr from, should not make any difference
 
 #define MSR_RAPL_POWER_UNIT		0x606
 
@@ -80,7 +91,7 @@
 #define TIME_UNIT_OFFSET	0x10
 #define TIME_UNIT_MASK		0xF000
 
-static int open_msr(int core) {
+static int open_msr() {
 
 	char msr_filename[BUFSIZ];
 	int fd;
@@ -158,19 +169,164 @@ double dram_before[MAX_PACKAGES],dram_after[MAX_PACKAGES];
 double psys_before[MAX_PACKAGES],psys_after[MAX_PACKAGES];
 double thermal_spec_power,minimum_power,maximum_power,time_window;
 int dram_avail=0,pp0_avail=0,pp1_avail=0,psys_avail=0;
+static int total_cores=0,total_packages=0;
+static int package_map[MAX_PACKAGES];
 
-int raplht_initialize(int verobse = 0)
-{
+pthread_t helper_thread;
+
+static int detect_packages(void) {
+
+	char filename[BUFSIZ];
+	FILE *fff;
+	int package;
+	int i;
+
+	for(i=0;i<MAX_PACKAGES;i++) package_map[i]=-1;
+
+	if(verbose) printf("\t");
+	for(i=0;i<MAX_CPUS;i++) {
+		sprintf(filename,"/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
+		fff=fopen(filename,"r");
+		if (fff==NULL) break;
+		fscanf(fff,"%d",&package);
+		if(verbose) printf("%d (%d)",i,package);
+		if(verbose) if (i%8==7) printf("\n\t"); else printf(", ");
+		fclose(fff);
+
+		if (package_map[package]==-1) {
+			total_packages++;
+			package_map[package]=i;
+		}
+
+	}
+
+	if(verbose) printf("\n");
+
+	total_cores=i;
+
+	
+	if(verbose) printf("\tDetected %d cores in %d packages\n\n",
+		total_cores,total_packages);
+
+	return 0;
+}
+
+static int detect_cpu() {
+
+	FILE *fff;
+
+	int family,model=-1;
+	char buffer[BUFSIZ],*result;
+	char vendor[BUFSIZ];
+
+	fff=fopen("/proc/cpuinfo","r");
+	if (fff==NULL) return -1;
+
+	while(1) {
+		result=fgets(buffer,BUFSIZ,fff);
+		if (result==NULL) break;
+
+		if (!strncmp(result,"vendor_id",8)) {
+			sscanf(result,"%*s%*s%s",vendor);
+
+			if (strncmp(vendor,"GenuineIntel",12)) {
+				printf("%s not an Intel chip\n",vendor);
+				return -1;
+			}
+		}
+
+		if (!strncmp(result,"cpu family",10)) {
+			sscanf(result,"%*s%*s%*s%d",&family);
+			if (family!=6) {
+				printf("Wrong CPU family %d\n",family);
+				return -1;
+			}
+		}
+
+		if (!strncmp(result,"model",5)) {
+			sscanf(result,"%*s%*s%d",&model);
+		}
+
+	}
+
+	fclose(fff);
+
+	
+	if(verbose) 	printf("Found ");
+
+	switch(model) {
+		case CPU_SANDYBRIDGE:
+	
+	if(verbose)	printf("Sandybridge");
+		break;
+		case CPU_SANDYBRIDGE_EP:
+	
+	if(verbose)	printf("Sandybridge-EP");
+		break;
+		case CPU_IVYBRIDGE:
+	if(verbose) printf("Ivybridge");
+		break;
+		case CPU_IVYBRIDGE_EP:
+	if(verbose) printf("Ivybridge-EP");
+		break;
+		case CPU_HASWELL:
+		case CPU_HASWELL_ULT:
+		case CPU_HASWELL_GT3E:
+	if(verbose) printf("Haswell");
+		break;
+		case CPU_HASWELL_EP:
+	if(verbose) printf("Haswell-EP");
+		break;
+		case CPU_BROADWELL:
+		case CPU_BROADWELL_GT3E:
+	if(verbose) printf("Broadwell");
+		break;
+		case CPU_BROADWELL_EP:
+	if(verbose) printf("Broadwell-EP");
+		break;
+		case CPU_SKYLAKE:
+		case CPU_SKYLAKE_HS:
+	if(verbose) printf("Skylake");
+		break;
+		case CPU_SKYLAKE_X:
+	if(verbose) printf("Skylake-X");
+		break;
+		case CPU_KABYLAKE:
+		case CPU_KABYLAKE_MOBILE:
+	if(verbose) printf("Kaby Lake");
+		break;
+		case CPU_KNIGHTS_LANDING:
+	if(verbose) printf("Knight's Landing");
+		break;
+		case CPU_KNIGHTS_MILL:
+	if(verbose) printf("Knight's Mill");
+		break;
+		case CPU_ATOM_GOLDMONT:
+		case CPU_ATOM_GEMINI_LAKE:
+		case CPU_ATOM_DENVERTON:
+	if(verbose) printf("Atom");
+		break;
+		default:
+	if(verbose) printf("Unsupported model %d\n",model);
+		model=-1;
+		break;
+	}
+if(verbose) printf(" Processor type\n");
+
+	return model;
+}
+
+int raplht_initialize() {
+
 	cpu_model=detect_cpu();
-	//detect_packages();
+	detect_packages();
 
 	int fd;
 	long long result;
 	int j;
 
 	int different_units=0;
-
-	if (verbose)	printf("\nTrying /dev/msr interface to gather results\n\n");
+	if(verbose) printf("\nTrying /dev/msr interface to gather results\n\n");
 
 	if (cpu_model<0) {
 		printf("\tUnsupported CPU model %d\n",cpu_model);
@@ -245,7 +401,7 @@ int raplht_initialize(int verobse = 0)
 	}
 
 	for(j=0;j<total_packages;j++) {
-		if(verbose) printf("\tListing paramaters for package #%d\n",j);
+	if(verbose) printf("\tListing paramaters for package #%d\n",j);
 
 		fd=open_msr(package_map[j]);
 
@@ -260,42 +416,42 @@ int raplht_initialize(int verobse = 0)
 		/* The DRAM units differ from the CPU ones */
 		if (different_units) {
 			dram_energy_units[j]=pow(0.5,(double)16);
-			if(verbose) printf("DRAM: Using %lf instead of %lf\n",
+		if(verbose) printf("DRAM: Using %lf instead of %lf\n",
 				dram_energy_units[j],cpu_energy_units[j]);
 		}
 		else {
 			dram_energy_units[j]=cpu_energy_units[j];
 		}
 
-		if (verbose) printf("\t\tPower units = %.3fW\n",power_units);
-		if (verbose) printf("\t\tCPU Energy units = %.8fJ\n",cpu_energy_units[j]);
-		if (verbose) printf("\t\tDRAM Energy units = %.8fJ\n",dram_energy_units[j]);
-		if (verbose) printf("\t\tTime units = %.8fs\n",time_units);
-		if (verbose) printf("\n");
-
+		if (verbose) {
+		printf("\t\tPower units = %.3fW\n",power_units);
+		printf("\t\tDRAM Energy units = %.8fJ\n",dram_energy_units[j]);
+		printf("\t\tTime units = %.8fs\n",time_units);
+		printf("\n");
+		}
 		/* Show package power info */
 		result=read_msr(fd,MSR_PKG_POWER_INFO);
 		thermal_spec_power=power_units*(double)(result&0x7fff);
-		if (verbose) printf("\t\tPackage thermal spec: %.3fW\n",thermal_spec_power);
+		if(verbose) printf("\t\tPackage thermal spec: %.3fW\n",thermal_spec_power);
 		minimum_power=power_units*(double)((result>>16)&0x7fff);
-		if (verbose) printf("\t\tPackage minimum power: %.3fW\n",minimum_power);
+		if(verbose) printf("\t\tPackage minimum power: %.3fW\n",minimum_power);
 		maximum_power=power_units*(double)((result>>32)&0x7fff);
-		if (verbose) printf("\t\tPackage maximum power: %.3fW\n",maximum_power);
+		if(verbose) printf("\t\tPackage maximum power: %.3fW\n",maximum_power);
 		time_window=time_units*(double)((result>>48)&0x7fff);
-		if (verbose) printf("\t\tPackage maximum time window: %.6fs\n",time_window);
+		if(verbose) printf("\t\tPackage maximum time window: %.6fs\n",time_window);
 
 		/* Show package power limit */
 		result=read_msr(fd,MSR_PKG_RAPL_POWER_LIMIT);
-		if (verbose) printf("\t\tPackage power limits are %s\n", (result >> 63) ? "locked" : "unlocked");
+		if(verbose) printf("\t\tPackage power limits are %s\n", (result >> 63) ? "locked" : "unlocked");
 		double pkg_power_limit_1 = power_units*(double)((result>>0)&0x7FFF);
 		double pkg_time_window_1 = time_units*(double)((result>>17)&0x007F);
-		if (verbose) printf("\t\tPackage power limit #1: %.3fW for %.6fs (%s, %s)\n",
+	if(verbose) printf("\t\tPackage power limit #1: %.3fW for %.6fs (%s, %s)\n",
 			pkg_power_limit_1, pkg_time_window_1,
 			(result & (1LL<<15)) ? "enabled" : "disabled",
 			(result & (1LL<<16)) ? "clamped" : "not_clamped");
 		double pkg_power_limit_2 = power_units*(double)((result>>32)&0x7FFF);
 		double pkg_time_window_2 = time_units*(double)((result>>49)&0x007F);
-		if (verbose) printf("\t\tPackage power limit #2: %.3fW for %.6fs (%s, %s)\n", 
+		if(verbose) printf("\t\tPackage power limit #2: %.3fW for %.6fs (%s, %s)\n", 
 			pkg_power_limit_2, pkg_time_window_2,
 			(result & (1LL<<47)) ? "enabled" : "disabled",
 			(result & (1LL<<48)) ? "clamped" : "not_clamped");
@@ -304,7 +460,7 @@ int raplht_initialize(int verobse = 0)
 		if ((cpu_model==CPU_SANDYBRIDGE_EP) || (cpu_model==CPU_IVYBRIDGE_EP)) {
 			result=read_msr(fd,MSR_PKG_PERF_STATUS);
 			double acc_pkg_throttled_time=(double)result*time_units;
-			if (verbose) printf("\tAccumulated Package Throttled Time : %.6fs\n",
+			if(verbose) printf("\tAccumulated Package Throttled Time : %.6fs\n",
 				acc_pkg_throttled_time);
 		}
 
@@ -312,12 +468,11 @@ int raplht_initialize(int verobse = 0)
 		if ((cpu_model==CPU_SANDYBRIDGE_EP) || (cpu_model==CPU_IVYBRIDGE_EP)) {
 			result=read_msr(fd,MSR_PP0_PERF_STATUS);
 			double acc_pp0_throttled_time=(double)result*time_units;
-			if (verbose) printf("\tPowerPlane0 (core) Accumulated Throttled Time "
+			if(verbose) printf("\tPowerPlane0 (core) Accumulated Throttled Time "
 				": %.6fs\n",acc_pp0_throttled_time);
-
 			result=read_msr(fd,MSR_PP0_POLICY);
 			int pp0_policy=(int)result&0x001f;
-			if (verbose) printf("\tPowerPlane0 (core) for core %d policy: %d\n",core,pp0_policy);
+			if(verbose) printf("\tPowerPlane0 (core) for core %d policy: %d\n",core,pp0_policy);
 
 		}
 
@@ -325,167 +480,25 @@ int raplht_initialize(int verobse = 0)
 		if (pp1_avail) {
 			result=read_msr(fd,MSR_PP1_POLICY);
 			int pp1_policy=(int)result&0x001f;
-			if (verbose) printf("\tPowerPlane1 (on-core GPU if avail) %d policy: %d\n",
+			if(verbose) printf("\tPowerPlane1 (on-core GPU if avail) %d policy: %d\n",
 				core,pp1_policy);
 		}
 		close(fd);
 
 	}
+	//rapl_msr(cpu_model);
 }
 
 
-static int detect_cpu(int verbose = 0) {
-
-	FILE *fff;
-
-	int family,model=-1;
-	char buffer[BUFSIZ],*result;
-	char vendor[BUFSIZ];
-
-	fff=fopen("/proc/cpuinfo","r");
-	if (fff==NULL) return -1;
-
-	while(1) {
-		result=fgets(buffer,BUFSIZ,fff);
-		if (result==NULL) break;
-
-		if (!strncmp(result,"vendor_id",8)) {
-			sscanf(result,"%*s%*s%s",vendor);
-
-			if (strncmp(vendor,"GenuineIntel",12)) {
-				printf("%s not an Intel chip\n",vendor);
-				return -1;
-			}
-		}
-
-		if (!strncmp(result,"cpu family",10)) {
-			sscanf(result,"%*s%*s%*s%d",&family);
-			if (family!=6) {
-				printf("Wrong CPU family %d\n",family);
-				return -1;
-			}
-		}
-
-		if (!strncmp(result,"model",5)) {
-			sscanf(result,"%*s%*s%d",&model);
-		}
-
-	}
-
-	fclose(fff);
-
-	if (verbose) printf("Found ");
-
-	switch(model) {
-		case CPU_SANDYBRIDGE:
-			if (verbose) printf("Sandybridge");
-			break;
-		case CPU_SANDYBRIDGE_EP:
-			if (verbose) printf("Sandybridge-EP");
-			break;
-		case CPU_IVYBRIDGE:
-			if (verbose) printf("Ivybridge");
-			break;
-		case CPU_IVYBRIDGE_EP:
-			if (verbose) printf("Ivybridge-EP");
-			break;
-		case CPU_HASWELL:
-		case CPU_HASWELL_ULT:
-		case CPU_HASWELL_GT3E:
-			if (verbose) printf("Haswell");
-			break;
-		case CPU_HASWELL_EP:
-			if (verbose) printf("Haswell-EP");
-			break;
-		case CPU_BROADWELL:
-		case CPU_BROADWELL_GT3E:
-			if (verbose) printf("Broadwell");
-			break;
-		case CPU_BROADWELL_EP:
-			if (verbose) printf("Broadwell-EP");
-			break;
-		case CPU_SKYLAKE:
-		case CPU_SKYLAKE_HS:
-			if (verbose) printf("Skylake");
-			break;
-		case CPU_SKYLAKE_X:
-			if (verbose) printf("Skylake-X");
-			break;
-		case CPU_KABYLAKE:
-		case CPU_KABYLAKE_MOBILE:
-			if (verbose) printf("Kaby Lake");
-			break;
-		case CPU_KNIGHTS_LANDING:
-			if (verbose) printf("Knight's Landing");
-			break;
-		case CPU_KNIGHTS_MILL:
-			if (verbose) printf("Knight's Mill");
-			break;
-		case CPU_ATOM_GOLDMONT:
-		case CPU_ATOM_GEMINI_LAKE:
-		case CPU_ATOM_DENVERTON:
-			if (verbose) printf("Atom");
-			break;
-		default:
-			if (verbose) printf("Unsupported model %d\n",model);
-			model=-1;
-			break;
-	}
-
-	if (verbose) printf(" Processor type\n");
-
-	return model;
-}
-
-#define MAX_CPUS	1024
-#define MAX_PACKAGES	16
-
-static int total_cores=0,total_packages=0;
-static int package_map[MAX_PACKAGES];
-
-static int detect_packages(void) {
-
-	char filename[BUFSIZ];
-	FILE *fff;
-	int package;
-	int i;
-
-	for(i=0;i<MAX_PACKAGES;i++) package_map[i]=-1;
-
-	printf("\t");
-	for(i=0;i<MAX_CPUS;i++) {
-		sprintf(filename,"/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
-		fff=fopen(filename,"r");
-		if (fff==NULL) break;
-		fscanf(fff,"%d",&package);
-		printf("%d (%d)",i,package);
-		if (i%8==7) printf("\n\t"); else printf(", ");
-		fclose(fff);
-
-		if (package_map[package]==-1) {
-			total_packages++;
-			package_map[package]=i;
-		}
-
-	}
-
-	printf("\n");
-
-	total_cores=i;
-
-	printf("\tDetected %d cores in %d packages\n\n",
-		total_cores,total_packages);
-
-	return 0;
-}
-
-
+pthread_cond_t cond;
+pthread_mutex_t mutex;
 /*******************************/
 /* MSR code                    */
 /*******************************/
-static int rapl_msr(int core, int cpu_model) {
-	printf("\n");
-
+void* rapl_msr(void* args) {
+	int j;
+	int fd;
+	long long result;
 	for(j=0;j<total_packages;j++) {
 
 		fd=open_msr(package_map[j]);
@@ -531,54 +544,67 @@ static int rapl_msr(int core, int cpu_model) {
 		close(fd);
 	}
 
-  	printf("\n\tSleeping 3 second\n\n");
-	sleep(40);
+	//while(cont) {
+		pthread_mutex_lock(&mutex);
+		puts("a");
+		pthread_cond_wait(&cond, &mutex);
+		pthread_mutex_unlock(&mutex);
+		puts("aaa");
+		for(j=0;j<total_packages;j++) {
+	
+			fd=open_msr(package_map[j]);
 
-	for(j=0;j<total_packages;j++) {
+			printf("\tPackage %d:\n",j);
 
-		fd=open_msr(package_map[j]);
-
-		printf("\tPackage %d:\n",j);
-
-		result=read_msr(fd,MSR_PKG_ENERGY_STATUS);
-		package_after[j]=(double)result*cpu_energy_units[j];
-		printf("\t\tPackage energy: %.6f J\n",
-			package_after[j]-package_before[j]);
-
-		result=read_msr(fd,MSR_PP0_ENERGY_STATUS);
-		pp0_after[j]=(double)result*cpu_energy_units[j];
-		printf("\t\tPowerPlane0 (cores): %.6f J\n",
-			pp0_after[j]-pp0_before[j]);
+			result=read_msr(fd,MSR_PKG_ENERGY_STATUS);
+			package_after[j]+=(double)result*cpu_energy_units[j];
+			printf("\t\tPackage energy: %.6f J\n",
+				package_after[j]-package_before[j]);
+	
+			result=read_msr(fd,MSR_PP0_ENERGY_STATUS);
+			pp0_after[j]+=(double)result*cpu_energy_units[j];
+			printf("\t\tPowerPlane0 (cores): %.6f J\n",
+				pp0_after[j]-pp0_before[j]);
 
 		/* not available on SandyBridge-EP */
-		if (pp1_avail) {
-			result=read_msr(fd,MSR_PP1_ENERGY_STATUS);
-			pp1_after[j]=(double)result*cpu_energy_units[j];
-			printf("\t\tPowerPlane1 (on-core GPU if avail): %.6f J\n",
-				pp1_after[j]-pp1_before[j]);
+			if (pp1_avail) {
+				result=read_msr(fd,MSR_PP1_ENERGY_STATUS);
+				pp1_after[j]+=(double)result*cpu_energy_units[j];
+				printf("\t\tPowerPlane1 (on-core GPU if avail): %.6f J\n",
+					pp1_after[j]-pp1_before[j]);
+			}
+	
+			if (dram_avail) {
+				result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
+				dram_after[j]+=(double)result*dram_energy_units[j];
+				printf("\t\tDRAM: %.6f J\n",
+					dram_after[j]-dram_before[j]);
+			}
+	
+			if (psys_avail) {
+				result=read_msr(fd,MSR_PLATFORM_ENERGY_STATUS);
+				psys_after[j]+=(double)result*cpu_energy_units[j];
+				printf("\t\tPSYS: %.6f J\n",
+					psys_after[j]-psys_before[j]);
+			}
+	
+			close(fd);
 		}
-
-		if (dram_avail) {
-			result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
-			dram_after[j]=(double)result*dram_energy_units[j];
-			printf("\t\tDRAM: %.6f J\n",
-				dram_after[j]-dram_before[j]);
-		}
-
-		if (psys_avail) {
-			result=read_msr(fd,MSR_PLATFORM_ENERGY_STATUS);
-			psys_after[j]=(double)result*cpu_energy_units[j];
-			printf("\t\tPSYS: %.6f J\n",
-				psys_after[j]-psys_before[j]);
-		}
-
-		close(fd);
-	}
+	//}
+//}
 	printf("\n");
-	printf("Note: the energy measurements can overflow in 60s or so\n");
-	printf("      so try to sample the counters more often than that.\n\n");
+	//printf("Note: the energy measurements can overflow in 60s or so\n");
+	//printf("      so try to sample the counters more often than that.\n\n");
 
 	return 0;
+}
+int	raplht_start(){
+	pthread_create(&helper_thread, NULL, rapl_msr, NULL);
+}
+
+int raplht_stop()
+{
+	pthread_cond_signal(&cond);
 }
 
 #define NUM_RAPL_DOMAINS	5

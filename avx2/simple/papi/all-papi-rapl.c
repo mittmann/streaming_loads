@@ -53,7 +53,6 @@ int main(int ac, char **av)
 	long long unsigned value[1];
 	int eventcode;
 	int EventSet = PAPI_NULL;
-
 	PAPI_library_init(PAPI_VER_CURRENT);
 	if(ac != 5)
 	{
@@ -118,6 +117,9 @@ int main(int ac, char **av)
 	for(int i=0; i<size; i+=2)
 		_mm_clflush(&mem[i]);
 	_mm_mfence();
+	raplht_initialize();
+	raplht_start();
+	
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
 		fail("PAPI_create_eventset falhou");
 	if (PAPI_add_event(EventSet,eventcode) != PAPI_OK)
@@ -143,6 +145,7 @@ int main(int ac, char **av)
 			}
 	}
 	_mm_mfence();
+	raplht_stop();
 	if (PAPI_stop(EventSet, value) != PAPI_OK)
 		fail("PAPI_stop falhou");
 	PAPI_remove_event(EventSet, eventcode);
