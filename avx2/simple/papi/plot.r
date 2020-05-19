@@ -1,7 +1,7 @@
 library(dplyr);
 library(ggplot2);
 
-df <- read.csv("pchase.csv");
+df <- read.csv("saidas.11.05.2020/papiallrapl");
 
 
 k <- df %>% select(counter,size,memtype,temp,opt,value) %>% 

@@ -1,0 +1,2 @@
+rapl::RAPL_ENERGY_CORES:cpu=3
+rapl::RAPL_ENERGY_PKG:cpu=3
