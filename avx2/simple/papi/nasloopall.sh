@@ -16,7 +16,7 @@ for pref in "on" "off"; do
 		prefetch -d  &> /dev/null
 	fi
 	for size in huge small; do
-		for memtyp in wb wc unc; do
+		for memtyp in wb wc; do
 			for temp in t nt; do
 				cset shield --exec ./loop $size $memtyp $temp >/dev/null & 
 				pid=$!

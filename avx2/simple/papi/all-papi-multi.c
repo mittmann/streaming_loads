@@ -7,8 +7,6 @@
 #include <papi.h>
 #include <string.h>
 
-#include "rapl-read.h"
-
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 void fail(char* msg)
@@ -50,10 +48,13 @@ int main(int ac, char **av)
 	register long int size;	 
 	register int reps;
 
-	long long unsigned value[1];
+	long long unsigned value[3];
 	int eventcode;
+	int eventcodes[3];
 	int EventSet = PAPI_NULL;
-	PAPI_library_init(PAPI_VER_CURRENT);
+
+	if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
+		fail("papi library init falhou");
 	if(ac != 5)
 	{
 		fail("qtd errada de args <TAMANHO TIPO_DE_MEM TEMPORALIDADE COUNTER>");
@@ -95,9 +96,16 @@ int main(int ac, char **av)
 	{
 		fail("temporalidade invalida");
 	}
-	
-	if( PAPI_event_name_to_code(av[4], &eventcode) != PAPI_OK )
-		fail("PAPI_event_name_to_code falhou");
+		
+	if( PAPI_event_name_to_code("PAPI_TOT_CYC", &eventcode) != PAPI_OK )
+		fail("PAPI_event_name_to_code falhou cyc");
+	eventcodes[0] = eventcode;
+	if( PAPI_event_name_to_code("PAPI_L3_TCR", &eventcode) != PAPI_OK )
+		fail("PAPI_event_name_to_code falhou tcr");
+	eventcodes[1] = eventcode;
+	if( PAPI_event_name_to_code("PAPI_L3_TCM", &eventcode) != PAPI_OK )
+		fail("PAPI_event_name_to_code falhou tcm");
+	eventcodes[2] = eventcode;
 
 		
 
@@ -117,12 +125,9 @@ int main(int ac, char **av)
 	for(int i=0; i<size; i+=2)
 		_mm_clflush(&mem[i]);
 	_mm_mfence();
-	raplht_initialize();
-	raplht_start();
-	
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
 		fail("PAPI_create_eventset falhou");
-	if (PAPI_add_event(EventSet,eventcode) != PAPI_OK)
+	if (PAPI_add_events(EventSet,eventcodes, 3) != PAPI_OK)
 		fail("PAPI_add_events falhou");	
 	if (PAPI_start(EventSet) != PAPI_OK)
 		fail("PAPI_start falhou");
@@ -145,10 +150,9 @@ int main(int ac, char **av)
 			}
 	}
 	_mm_mfence();
-	raplht_stop();
 	if (PAPI_stop(EventSet, value) != PAPI_OK)
 		fail("PAPI_stop falhou");
-	PAPI_remove_event(EventSet, eventcode);
+	PAPI_remove_events(EventSet, eventcodes, 3);
 	PAPI_shutdown();
 
 	printf("reps: %d, size: %ld\n", reps, size);
