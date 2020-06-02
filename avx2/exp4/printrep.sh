@@ -3,6 +3,6 @@ sizes=(16 128 512 1024 2048 $((3*1024)) $((4*1024)) $((5*1024)) $((6*1024)) $((7
 
 for size1 in ${sizes[@]}; do
 	reps=$(( (sizes[-1] *20 ) / size1 ))
-		echo $reps
+		echo $size1 $reps
 done
 

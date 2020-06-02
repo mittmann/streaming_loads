@@ -66,14 +66,14 @@ void *read_stream(void* arg) {
 //	printf("mem: %p\n", mem);
 	if (args->temporal)
 		for(int j=0;j<args->reps;j++)
-			for(int i=0; i<args->size; i++)
+			for(int i=0; i<args->size; i+=2)
 			{
 				local = _mm256_load_si256(&args->mem[i]);
 				acc = _mm256_add_epi64(acc, local);
 			}
 	else
 		for(int j=0;j<args->reps;j++)
-			for(int i=0; i<args->size; i++)
+			for(int i=0; i<args->size; i+=2)
 			{
 				local = _mm256_stream_load_si256(&args->mem[i]);
 				acc = _mm256_add_epi64(acc, local);
