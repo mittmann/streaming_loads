@@ -1,0 +1,10 @@
+cset: --> last message, executed args into cpuset "/user", new pid is: 20797
+usable a: 2101184, usable b: 0
+size a: 65536, mem a: 0x7f4db09ed040
+size b: 4194304, mem b: 0x7f4da89ed000
+acc_a: 16492171100160, reps_a: 15360, size_a: 2048KB 
+acc_b: 118749180985344, reps_b: 27, size_b: 131072KB 
+PAPI_THREAD_A:PAPI_TOT_CYC:2404569783
+PAPI_THREAD_A:PAPI_L3_TCM:183102
+PAPI_THREAD_A:PAPI_L3_TCR:503317065
+REPS_B:27
