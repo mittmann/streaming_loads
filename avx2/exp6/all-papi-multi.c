@@ -12,13 +12,10 @@
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 
-#define UPDATE_INTERVAL 1
-
 struct arg_struct {
 	unsigned size;
 	long long unsigned reps;
 	long long unsigned value[3];
-	int overhead;
 	int temporal;
 	int *eventcodes;
 	__m256i *mem;
@@ -54,6 +51,8 @@ void *read_stream(void* arg) {
 	struct arg_struct *args = (struct arg_struct *) arg;
 	pthread_t current = pthread_self();
 	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
+	/*if (CPU_ISSET(3,&(args->cpuset)))
+		usleep(2000);	*/
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
 		fail("PAPI_create_eventset falhou");
 	if (PAPI_add_events(EventSet,args->eventcodes, 3) != PAPI_OK)
@@ -85,45 +84,6 @@ void *read_stream(void* arg) {
 	PAPI_remove_events(EventSet, args->eventcodes, 3);
 }
 
-void *read_stream_overhead(void* arg) {
-	int EventSet = PAPI_NULL;
-	struct arg_struct *args = (struct arg_struct *) arg;
-	int overhead = args->overhead;
-	pthread_t current = pthread_self();
-	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
-	__m256i local __attribute__((aligned(64)));
-	__m256i acc __attribute__((aligned(64)));
-	__m256i *mem = args->mem;
-	acc = _mm256_set1_epi64x(0);
-//	printf("mem: %p\n", mem);
-	if (args->temporal)
-		while(1){
-			for(int j=0; j<UPDATE_INTERVAL; j++) 
-				for(int i=0; i<args->size; i+=2)
-				{
-					for(int k=0; k < overhead; k ++)
-						acc += k + 5; //encontrar função melhor
-					local = _mm256_load_si256(&args->mem[i]);
-					acc = _mm256_add_epi64(acc, local);
-				}
-				args->reps++;
-				args->acc[0] = acc;
-			}
-	else
-		while(1){
-			for(int j=0; j<UPDATE_INTERVAL; j++) 
-				for(int i=0; i<args->size; i+=2)
-				{
-					for(int k=0; k < overhead; k ++)
-						acc += k + 5; //encontrar função melhor
-					local = _mm256_stream_load_si256(&args->mem[i]);
-					acc = _mm256_add_epi64(acc, local);
-				}
-				args->reps++;
-				args->acc[0] = acc;
-			}
-	(args->acc)[0] = acc;
-}
 
 int main(int ac, char **av)
 {
@@ -135,14 +95,12 @@ int main(int ac, char **av)
 	int eventcode;
 	int eventcodes[3];
 //	int EventSet = PAPI_NULL;
-	
 	struct arg_struct args_a;
 	struct arg_struct args_b;
 	args_a.acc = &tempa; // reserva memoria pros accs de retorno de cada thread
 	args_b.acc = &tempb;
 
 	pthread_t th1, th2;
-
 	if(ac < 9)
 	{
 		fail("qtd errada de args <TAMANHO_A REPS_A TIPO_A TEMP_A TAMANHO_B REPS_B TIPO_B TEMP_B> <opt: 3 counters papi>");
@@ -177,7 +135,7 @@ int main(int ac, char **av)
 	//printf("map: %p, args_a.size*32: %lld, size: %d\n", map, args_a.size*32, size);
 	//args_a.mem = map;
 
-	if(!strcmp(av[4],"n"))
+	if(!strcmp(av[4],"nt"))
 		args_a.temporal = 0;
 	else if(!strcmp(av[4],"t"))
 		args_a.temporal = 1;
@@ -188,8 +146,7 @@ int main(int ac, char **av)
 
 //// ARGS B
 		args_b.size = atoi(av[5])*32;
-		args_b.overhead = atoi(av[6]);
-		args_b.reps = 0;
+		args_b.reps = atoll(av[6]);
 
 	if(!strcmp(av[7],"unc")) 
 		if ( args_b.size/32 > 128)
@@ -211,7 +168,7 @@ int main(int ac, char **av)
 
 	//args_b.mem = ((__m256i*)map);
 
-	if(!strcmp(av[8],"n"))
+	if(!strcmp(av[8],"nt"))
 		args_b.temporal = 0;
 	else if(!strcmp(av[8],"t"))
 		args_b.temporal = 1;
@@ -303,10 +260,10 @@ int main(int ac, char **av)
 		fail("PAPI_start falhou");
 */
 	pthread_create(&th1, NULL, read_stream, &args_a);
-	pthread_create(&th2, NULL, read_stream_overhead, &args_b);
+	pthread_create(&th2, NULL, read_stream, &args_b);
 
 	pthread_join(th1, NULL);
-	pthread_cancel(th2);
+	pthread_join(th2, NULL);
 
 	_mm_mfence();
 /*	if (PAPI_stop(EventSet, value) != PAPI_OK)
@@ -314,6 +271,7 @@ int main(int ac, char **av)
 	PAPI_remove_events(EventSet, eventcodes, 3);
 */
 	PAPI_shutdown();
+
 	char event1[128],event2[128],event3[128];
 	PAPI_event_code_to_name(eventcodes[0],event1);
 	PAPI_event_code_to_name(eventcodes[1],event2);
@@ -323,7 +281,9 @@ int main(int ac, char **av)
 	printf("PAPI_THREAD_A:%s:%llu\n", event1, args_a.value[0]);
 	printf("PAPI_THREAD_A:%s:%llu\n", event2, args_a.value[1]);
 	printf("PAPI_THREAD_A:%s:%llu\n", event3, args_a.value[2]);
-	printf("REPS_B:%llu\n", args_b.reps);
+	printf("PAPI_THREAD_B:%s:%llu\n", event1, args_b.value[0]);
+	printf("PAPI_THREAD_B:%s:%llu\n", event2, args_b.value[1]);
+	printf("PAPI_THREAD_B:%s:%llu\n", event3, args_b.value[2]);
 	return (long long unsigned)(args_a.acc)[0][0] + (long long unsigned)(args_b.acc)[0][0];
 
 }
