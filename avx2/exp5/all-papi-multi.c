@@ -97,8 +97,8 @@ void *read_stream_overhead(void* arg) {
 	acc = _mm256_set1_epi64x(0);
 //	printf("mem: %p\n", mem);
 	if (args->temporal)
-		while(1){
-			for(int j=0; j<UPDATE_INTERVAL; j++) 
+		while(1)
+			for(int j=0; j<UPDATE_INTERVAL; j++) {
 				for(int i=0; i<args->size; i+=2)
 				{
 					for(int k=0; k < overhead; k ++)
@@ -110,8 +110,8 @@ void *read_stream_overhead(void* arg) {
 				args->acc[0] = acc;
 			}
 	else
-		while(1){
-			for(int j=0; j<UPDATE_INTERVAL; j++) 
+		while(1)
+			for(int j=0; j<UPDATE_INTERVAL; j++) {
 				for(int i=0; i<args->size; i+=2)
 				{
 					for(int k=0; k < overhead; k ++)
