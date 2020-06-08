@@ -69,14 +69,14 @@ void *read_stream(void* arg) {
 		for(int j=0;j<args->reps;j++)
 			for(int i=0; i<args->size; i+=2)
 			{
-				local = _mm256_load_si256(&args->mem[i]);
+				local = _mm256_load_si256(&mem[i]);
 				acc = _mm256_add_epi64(acc, local);
 			}
 	else
 		for(int j=0;j<args->reps;j++)
 			for(int i=0; i<args->size; i+=2)
 			{
-				local = _mm256_stream_load_si256(&args->mem[i]);
+				local = _mm256_stream_load_si256(&mem[i]);
 				acc = _mm256_add_epi64(acc, local);
 			}
 	(args->acc)[0] = acc;
@@ -103,7 +103,7 @@ void *read_stream_overhead(void* arg) {
 				{
 					for(int k=0; k < overhead; k ++)
 						acc += k + 5; //encontrar função melhor
-					local = _mm256_load_si256(&args->mem[i]);
+					local = _mm256_load_si256(&mem[i]);
 					acc = _mm256_add_epi64(acc, local);
 				}
 				args->reps++;
@@ -116,7 +116,7 @@ void *read_stream_overhead(void* arg) {
 				{
 					for(int k=0; k < overhead; k ++)
 						acc += k + 5; //encontrar função melhor
-					local = _mm256_stream_load_si256(&args->mem[i]);
+					local = _mm256_stream_load_si256(&mem[i]);
 					acc = _mm256_add_epi64(acc, local);
 				}
 				args->reps++;

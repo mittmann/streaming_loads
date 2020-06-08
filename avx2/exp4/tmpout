@@ -1,12 +1,1 @@
-cset: --> last message, executed args into cpuset "/user", new pid is: 16798
-usable a: 1610616768, usable b: 16392
-size a: 50331648, mem a: 0x7fc516543040
-size b: 512, mem b: 0x5611308fa040
-acc_a: 6333186724331520, reps_a: 10, size_a: 1572864KB 
-acc_b: 65280, reps_b: 1, size_b: 16KB 
-PAPI_THREAD_A:PAPI_TOT_CYC:4989847243
-PAPI_THREAD_A:PAPI_L3_TCM:252159813
-PAPI_THREAD_A:PAPI_L3_TCR:252166602
-PAPI_THREAD_B:PAPI_TOT_CYC:8235
-PAPI_THREAD_B:PAPI_L3_TCM:297
-PAPI_THREAD_B:PAPI_L3_TCR:311
+cset: --> last message, executed args into cpuset "/user", new pid is: 28660

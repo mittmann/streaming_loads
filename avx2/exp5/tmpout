@@ -1,10 +1,1 @@
-cset: --> last message, executed args into cpuset "/user", new pid is: 6782
-usable a: 7344064, usable b: 134221760
-size a: 229376, mem a: 0x7f8dd7446040
-size b: 4194304, mem b: 0x7f8dcf445040
-acc_a: 115445835251712, reps_a: 8777, size_a: 7168KB 
-acc_b: 409031392886784, reps_b: 93, size_b: 131072KB 
-PAPI_THREAD_A:PAPI_TOT_CYC:11602307578
-PAPI_THREAD_A:PAPI_L3_TCM:390351718
-PAPI_THREAD_A:PAPI_L3_TCR:1008634828
-REPS_B:93
+cset: --> last message, executed args into cpuset "/user", new pid is: 32330
