@@ -1,12 +1,12 @@
-cset: --> last message, executed args into cpuset "/user", new pid is: 355
-usable a: 3149760, usable b: 16392
-size a: 98304, mem a: 0x7f4a60643040
-size b: 512, mem b: 0x5620749bc040
-acc_a: 50687367462912, reps_a: 20981, size_a: 3072KB 
-acc_b: 65280, reps_b: 1, size_b: 16KB 
-PAPI_THREAD_A:PAPI_TOT_CYC:4913752358
-PAPI_THREAD_A:PAPI_L3_TCM:167121
-PAPI_THREAD_A:PAPI_L3_TCR:1031262198
-PAPI_THREAD_B:PAPI_TOT_CYC:7745
-PAPI_THREAD_B:PAPI_L3_TCM:286
-PAPI_THREAD_B:PAPI_L3_TCR:305
+cset: --> last message, executed args into cpuset "/user", new pid is: 22056
+usable a: 0, usable b: 5246912
+size a: 163840, mem a: 0x7f7a150d7000
+size b: 163840, mem b: 0x7f7a14bd6040
+acc_a: 74718097080320, reps_a: 11134, size_a: 5120KB 
+acc_b: 74718097080320, reps_b: 11134, size_b: 5120KB 
+PAPI_THREAD_A:PAPI_TOT_CYC:23631171392
+PAPI_THREAD_A:PAPI_L3_TCM:102098
+PAPI_THREAD_A:PAPI_L3_TCR:103944
+PAPI_THREAD_B:PAPI_TOT_CYC:5176144686
+PAPI_THREAD_B:PAPI_L3_TCM:32265917
+PAPI_THREAD_B:PAPI_L3_TCR:913895107

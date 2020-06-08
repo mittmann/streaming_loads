@@ -3,16 +3,16 @@ library(DoE.wrapper);
 library(dplyr)
 scenario <- fac.design (
          nfactors=3,
-         replications=40,
+         replications=20,
          repeat.only=FALSE,
          blocks=1,
          randomize=TRUE,
          seed=10373,
-         nlevels=c(length(seq(4,17)),length(seq(4,17)),3),
+         nlevels=c(length(seq(4,17)),length(seq(4,17)),4),
          factor.names=list(
               sizea=seq(4,17),
               sizeb=seq(4,17),
-              temp=c("nn","nt","tt")
+              temp=c("nn","nt","tn","tt")
          )) ;
 
 scenario$sizea <- as.numeric(as.character(scenario$sizea))

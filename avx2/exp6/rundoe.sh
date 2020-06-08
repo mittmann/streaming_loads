@@ -19,6 +19,11 @@ do
 			temp1=nt
 			temp2=nt
 		elif [ $f7 == "\"nt\"" ]; then
+			mem1=wc
+			mem2=wb
+			temp1=nt
+			temp2=t
+		elif [ $f7 == "\"tn\"" ]; then
 			mem1=wb
 			mem2=wc
 			temp1=t
