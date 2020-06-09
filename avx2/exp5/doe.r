@@ -1,7 +1,7 @@
 require(DoE.base);
 scenario <- fac.design (
          nfactors=3,
-         replications=50,
+         replications=30,
          repeat.only=FALSE,
          blocks=1,
          randomize=TRUE,
