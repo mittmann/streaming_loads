@@ -6,7 +6,8 @@ args = commandArgs(trailingOnly=TRUE)
 df <- read.csv(args[1]);
 
 k <- df %>% select(size,temp,overhead,cyca,l3ma,l3ra,repsb) %>% 
- group_by(size,overhead,temp) %>% filter(!cyca %in% c(outlier(cyca))) %>% filter(!cyca %in% c(outlier(cyca)))  %>% summarise(mcyca=min(cyca), ml3ma=min(l3ma), ml3ra=min(l3ra), mrepsb=min(repsb) ) %>%  as.data.frame()  #%>% summarise(mean_cyc=mean(cycles), mean_l3m=mean(l3m), mean_l3l=mean(l3l), sd_c=sd(cycles), sd_m=sd(l3m),sd_l=sd(l3l))
+ group_by(size,overhead,temp) %>% summarise(mcyca=mean(cyca), ml3ma=mean(l3ma), ml3ra=mean(l3ra), mrepsb=mean(repsb) ) %>%  as.data.frame()  #%>% summarise(mean_cyc=mean(cycles), mean_l3m=mean(l3m), mean_l3l=mean(l3l), sd_c=sd(cycles), sd_m=sd(l3m),sd_l=sd(l3l))
+ #group_by(size,overhead,temp) %>% summarise(mcyca=min(cyca), ml3ma=min(l3ma), ml3ra=min(l3ra), mrepsb=min(repsb) ) %>%  as.data.frame()  #%>% summarise(mean_cyc=mean(cycles), mean_l3m=mean(l3m), mean_l3l=mean(l3l), sd_c=sd(cycles), sd_m=sd(l3m),sd_l=sd(l3l))
 
 #head(k)
 #k <- gather(k, cyca,l3ma,l3ra,cycb,l3rb,l3mb) #%>% as.data.frame()
@@ -27,8 +28,8 @@ for (t in lista) {
 #	print(a)
 	counter = a$key[1]
 	temp = a$temp[1] 
-	a <- select (a, -c(temp, key))
-	write.table(a, paste0("exportables/names/",counter,temp, sep=""), row.names=FALSE, col.names=TRUE, sep=" ")
+	a <- select (a, -c(temp, key,size))
+	write.table(a, paste0("exportables/",counter,temp, sep=""), row.names=FALSE, col.names=FALSE, sep=" ")
 }
 
 #lista
