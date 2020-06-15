@@ -51,8 +51,8 @@ void *read_stream(void* arg) {
 	struct arg_struct *args = (struct arg_struct *) arg;
 	pthread_t current = pthread_self();
 	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
-	/*if (CPU_ISSET(3,&(args->cpuset)))
-		usleep(2000);	*/
+	/*if (CPU_ISSET(2,&(args->cpuset)))
+		usleep(4000);*/
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
 		fail("PAPI_create_eventset falhou");
 	if (PAPI_add_events(EventSet,args->eventcodes, 3) != PAPI_OK)
