@@ -66,14 +66,14 @@ void *read_stream(void* arg) {
 //	printf("mem: %p\n", mem);
 	if (args->temporal)
 		for(unsigned int j=0;j<args->reps;j++)
-			for(unsigned int i=0; i<args->size; i+=2)
+			for(unsigned int i=0; i<args->size; i++)
 			{
 				local = _mm512_load_si512(&mem[i]);
 				acc = _mm512_add_epi64(acc, local);
 			}
 	else
 		for(unsigned int j=0;j<args->reps;j++)
-			for(unsigned int i=0; i<args->size; i+=2)
+			for(unsigned int i=0; i<args->size; i++)
 			{
 				local = _mm512_stream_load_si512(&mem[i]);
 				acc = _mm512_add_epi64(acc, local);
