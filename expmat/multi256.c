@@ -184,7 +184,7 @@ int main(int ac, char **av)
 		
 ////
 
-
+	printf("Core 1: %d, Core 2: %d\n", core1, core2);
 	CPU_ZERO(&(args_a.cpuset)); CPU_ZERO(&(args_a.cpuset));
 	CPU_SET(core1, &(args_a.cpuset)); CPU_SET(core2, &(args_b.cpuset));
 	
@@ -228,7 +228,7 @@ int main(int ac, char **av)
 //	__m256i *mem = ((__m256i*)map);
 
 	
-//	printf("usable a: %u, usable b: %u\n", malloc_usable_size(args_a.mem), malloc_usable_size(args_b.mem));
+	printf("usable a: %u, usable b: %u\n", malloc_usable_size(args_a.mem), malloc_usable_size(args_b.mem));
 	
 	printf("size a: %u, mem a: %p\n", args_a.size, args_a.mem);
 	printf("size b: %u, mem b: %p\n", args_b.size, args_b.mem);

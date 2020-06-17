@@ -100,38 +100,40 @@ int main(int ac, char **av)
 	args_a.acc = &tempa; // reserva memoria pros accs de retorno de cada thread
 	args_b.acc = &tempb;
 
+	int core1, core2;
+
 	pthread_t th1, th2;
-	if(ac < 9)
+	if(ac < 11)
 	{
-		fail("qtd errada de args <TAMANHO_A REPS_A TIPO_A TEMP_A TAMANHO_B REPS_B TIPO_B TEMP_B> <opt: 3 counters papi>");
+		fail("qtd errada de args <TAMANHO_A REPS_A TIPO_A TEMP_A TAMANHO_B REPS_B TIPO_B TEMP_B CORE_1 CORE_2> <opt: 3 counters papi>");
 	}
 
 //// ARGS A
-		args_a.size = atoi(av[1])*32; //igual a *1024/32 pra dar o numero de elementos em kb
+		args_a.size = atoi(av[1])*16; //igual a *1024/64 pra dar o numero de elementos em kb
 		args_a.reps = atoll(av[2]);
 	int size = args_a.size;
 
 	if(!strcmp(av[3],"unc")) 
-		if ( args_a.size/32 > 128)
-			args_a.mem = (__m512i*)get_uncached_mem("unc", args_a.size*32);
+		if ( args_a.size/16 > 128)
+			args_a.mem = (__m512i*)get_uncached_mem("unc", args_a.size*64);
 		else
 			args_a.mem = (__m512i*)get_uncached_mem("unc", 1024*128);
 	else if(!strcmp(av[3],"wc")) 
-		if ( args_a.size/32 > 128)
-			args_a.mem = (__m512i*)get_uncached_mem("wc", args_a.size*32);
+		if ( args_a.size/16 > 128)
+			args_a.mem = (__m512i*)get_uncached_mem("wc", args_a.size*64);
 		else
 			args_a.mem = (__m512i*)get_uncached_mem("wc", 1024*128);
 		
 	else if(!strcmp(av[3],"wb"))
-		//args_a.mem = (__m256i*)aligned_alloc(64,(size_t)(args_b.size*32));
+		//args_a.mem = (__m512i*)aligned_alloc(64,(size_t)(args_b.size*32));
 
 		//map = aligned_alloc(64, size*32);
-		args_a.mem = (__m512i*)_mm_malloc(args_a.size*32, 64);
+		args_a.mem = (__m512i*)_mm_malloc(args_a.size*64, 64);
 	else
 	{
 		fail("tipo de mem invalido");
 	}
-	//args_a.mem = ((__m256i*)map);
+	//args_a.mem = ((__m512i*)map);
 	//printf("map: %p, args_a.size*32: %lld, size: %d\n", map, args_a.size*32, size);
 	//args_a.mem = map;
 
@@ -145,28 +147,28 @@ int main(int ac, char **av)
 	}
 
 //// ARGS B
-		args_b.size = atoi(av[5])*32;
+		args_b.size = atoi(av[5])*16;
 		args_b.reps = atoll(av[6]);
 
 	if(!strcmp(av[7],"unc")) 
-		if ( args_b.size/32 > 128)
-			args_b.mem = (__m512i*)get_uncached_mem("unc", args_b.size*32);
+		if ( args_b.size/16 > 128)
+			args_b.mem = (__m512i*)get_uncached_mem("unc", args_b.size*64);
 		else
 			args_b.mem = (__m512i*)get_uncached_mem("unc", 1024*128);
 	else if(!strcmp(av[7],"wc")) 
-		if ( args_b.size/32 > 128)
-			args_b.mem = (__m512i*)get_uncached_mem("wc", args_b.size*32);
+		if ( args_b.size/16 > 128)
+			args_b.mem = (__m512i*)get_uncached_mem("wc", args_b.size*64);
 		else
-			args_b.mem = (__m256i*)get_uncached_mem("wc", 1024*128);
+			args_b.mem = (__m512i*)get_uncached_mem("wc", 1024*128);
 	else if(!strcmp(av[7],"wb"))
-		//args_b.mem = (__m256i*)aligned_alloc(64,(size_t)(args_b.size*32));
-		args_b.mem = (__m256i*)_mm_malloc(args_b.size*32, 64);
+		//args_b.mem = (__m512i*)aligned_alloc(64,(size_t)(args_b.size*32));
+		args_b.mem = (__m512i*)_mm_malloc(args_b.size*64, 64);
 	else
 	{
 		fail("tipo de mem invalido");
 	}
 
-	//args_b.mem = ((__m256i*)map);
+	//args_b.mem = ((__m512i*)map);
 
 	if(!strcmp(av[8],"nt"))
 		args_b.temporal = 0;
@@ -176,12 +178,15 @@ int main(int ac, char **av)
 	{
 		fail("temporalidade invalida");
 	}
+	
+	core1 = atoi(av[9]);
+	core2 = atoi(av[10]);
 		
 ////
 
-
+	printf("Core 1: %d, Core 2: %d\n", core1, core2);
 	CPU_ZERO(&(args_a.cpuset)); CPU_ZERO(&(args_a.cpuset));
-	CPU_SET(2, &(args_a.cpuset)); CPU_SET(4, &(args_b.cpuset));
+	CPU_SET(core1, &(args_a.cpuset)); CPU_SET(core2, &(args_b.cpuset));
 	
 
 	if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
@@ -190,7 +195,7 @@ int main(int ac, char **av)
 			puts("papi_einval");
 		fail("papi library init falhou");
 	}
-	if ( ac == 9 ) {
+	if ( ac == 11 ) {
 		if( PAPI_event_name_to_code("PAPI_TOT_CYC", &eventcode) != PAPI_OK )
 			fail("PAPI_event_name_to_code falhou cyc");
 		eventcodes[0] = eventcode;
@@ -201,14 +206,14 @@ int main(int ac, char **av)
 			fail("PAPI_event_name_to_code falhou tcr");
 		eventcodes[2] = eventcode;
 	}
-	else if ( ac == 12 ) {
-		if( PAPI_event_name_to_code(av[9], &eventcode) != PAPI_OK )
+	else if ( ac == 14 ) {
+		if( PAPI_event_name_to_code(av[11], &eventcode) != PAPI_OK )
 			fail("PAPI_event_name_to_code falhou 1");
 		eventcodes[0] = eventcode;
-		if( PAPI_event_name_to_code(av[10], &eventcode) != PAPI_OK )
+		if( PAPI_event_name_to_code(av[12], &eventcode) != PAPI_OK )
 			fail("PAPI_event_name_to_code falhou 2");
 		eventcodes[1] = eventcode;
-		if( PAPI_event_name_to_code(av[11], &eventcode) != PAPI_OK )
+		if( PAPI_event_name_to_code(av[13], &eventcode) != PAPI_OK )
 			fail("PAPI_event_name_to_code falhou 3");
 		eventcodes[2] = eventcode;
 	}
@@ -220,7 +225,7 @@ int main(int ac, char **av)
 
 	_mm_mfence();
 
-//	__m256i *mem = ((__m256i*)map);
+//	__m512i *mem = ((__m512i*)map);
 
 	
 //	printf("usable a: %u, usable b: %u\n", malloc_usable_size(args_a.mem), malloc_usable_size(args_b.mem));
@@ -230,9 +235,9 @@ int main(int ac, char **av)
 	for(uint64_t i=0; i<args_a.size; i++)
 	{
 		//printf("i: %ld - ", i);
-		__m256i local __attribute__((aligned(64)));
-		local = _mm256_set1_epi64x(i);
-		_mm256_stream_si256(&(args_a.mem[i]), local);
+		__m512i local __attribute__((aligned(64)));
+		local = _mm512_set1_epi64x(i);
+		_mm512_stream_si512(&(args_a.mem[i]), local);
 	}
 	_mm_mfence();
 	for(int i=0; i<args_a.size; i+=2)
@@ -242,9 +247,9 @@ int main(int ac, char **av)
 
 	for(uint64_t i=0; i<args_b.size; i++)
 	{
-		__m256i local __attribute__((aligned(64)));
-		local = _mm256_set1_epi64x(i);
-		_mm256_stream_si256((args_b.mem + i), local);
+		__m512i local __attribute__((aligned(64)));
+		local = _mm512_set1_epi64x(i);
+		_mm512_stream_si512((args_b.mem + i), local);
 	}
 	_mm_mfence();
 	for(int i=0; i<args_b.size; i+=2)
