@@ -62,7 +62,7 @@ void *read_stream(void* arg) {
 	__m512i local __attribute__((aligned(64)));
 	__m512i acc __attribute__((aligned(64)));
 	__m512i *mem = args->mem;
-	acc = _mm512_set1_epi64x(0);
+	acc = _mm512_set1_epi64(0);
 //	printf("mem: %p\n", mem);
 	if (args->temporal)
 		for(int j=0;j<args->reps;j++)
@@ -236,7 +236,7 @@ int main(int ac, char **av)
 	{
 		//printf("i: %ld - ", i);
 		__m512i local __attribute__((aligned(64)));
-		local = _mm512_set1_epi64x(i);
+		local = _mm512_set1_epi64(i);
 		_mm512_stream_si512(&(args_a.mem[i]), local);
 	}
 	_mm_mfence();
@@ -248,7 +248,7 @@ int main(int ac, char **av)
 	for(uint64_t i=0; i<args_b.size; i++)
 	{
 		__m512i local __attribute__((aligned(64)));
-		local = _mm512_set1_epi64x(i);
+		local = _mm512_set1_epi64(i);
 		_mm512_stream_si512((args_b.mem + i), local);
 	}
 	_mm_mfence();
