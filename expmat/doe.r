@@ -8,10 +8,10 @@ scenario <- fac.design (
          blocks=1,
          randomize=TRUE,
          seed=10373,
-         nlevels=c(length(seq(4,17)),length(seq(4,17)),4),
+         nlevels=c(length(seq(1,14)),length(seq(0,14)),4),
          factor.names=list(
-              sizea=seq(4,17),
-              sizeb=seq(4,17),
+              sizea=seq(1,14),
+              sizeb=seq(0,14),
               temp=c("nn","nt","tn","tt")
          )) ;
 
