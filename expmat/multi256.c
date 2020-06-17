@@ -15,7 +15,7 @@
 struct arg_struct {
 	unsigned size;
 	long long unsigned reps;
-	long long unsigned value[3];
+	long long value[3];
 	int temporal;
 	int *eventcodes;
 	__m256i *mem;
@@ -65,15 +65,15 @@ void *read_stream(void* arg) {
 	acc = _mm256_set1_epi64x(0);
 //	printf("mem: %p\n", mem);
 	if (args->temporal)
-		for(int j=0;j<args->reps;j++)
-			for(int i=0; i<args->size; i+=2)
+		for(unsigned int j=0;j<args->reps;j++)
+			for(unsigned int i=0; i<args->size; i+=2)
 			{
 				local = _mm256_load_si256(&mem[i]);
 				acc = _mm256_add_epi64(acc, local);
 			}
 	else
-		for(int j=0;j<args->reps;j++)
-			for(int i=0; i<args->size; i+=2)
+		for(unsigned int j=0;j<args->reps;j++)
+			for(unsigned int i=0; i<args->size; i+=2)
 			{
 				local = _mm256_stream_load_si256(&mem[i]);
 				acc = _mm256_add_epi64(acc, local);
@@ -82,16 +82,14 @@ void *read_stream(void* arg) {
 	if (PAPI_stop(EventSet, args->value) != PAPI_OK)
 		fail("PAPI_stop falhou");
 	PAPI_remove_events(EventSet, args->eventcodes, 3);
+	return 0;
 }
 
 
 int main(int ac, char **av)
 {
-
-	void *map __attribute__((aligned(64)));
 	__m256i tempa, tempb;
 
-	long long unsigned value[3];
 	int eventcode;
 	int eventcodes[3];
 //	int EventSet = PAPI_NULL;
@@ -111,7 +109,6 @@ int main(int ac, char **av)
 //// ARGS A
 		args_a.size = atoi(av[1])*32; //igual a *1024/32 pra dar o numero de elementos em kb
 		args_a.reps = atoll(av[2]);
-	int size = args_a.size;
 
 	if(!strcmp(av[3],"unc")) 
 		if ( args_a.size/32 > 128)
@@ -228,7 +225,7 @@ int main(int ac, char **av)
 //	__m256i *mem = ((__m256i*)map);
 
 	
-	printf("usable a: %u, usable b: %u\n", malloc_usable_size(args_a.mem), malloc_usable_size(args_b.mem));
+	//printf("usable a: %u, usable b: %u\n", malloc_usable_size(args_a.mem), malloc_usable_size(args_b.mem));
 	
 	printf("size a: %u, mem a: %p\n", args_a.size, args_a.mem);
 	printf("size b: %u, mem b: %p\n", args_b.size, args_b.mem);
@@ -240,7 +237,7 @@ int main(int ac, char **av)
 		_mm256_stream_si256(&(args_a.mem[i]), local);
 	}
 	_mm_mfence();
-	for(int i=0; i<args_a.size; i+=2)
+	for(unsigned int i=0; i<args_a.size; i+=2)
 		_mm_clflush((args_a.mem + i));
 	_mm_mfence();
 
@@ -252,7 +249,7 @@ int main(int ac, char **av)
 		_mm256_stream_si256((args_b.mem + i), local);
 	}
 	_mm_mfence();
-	for(int i=0; i<args_b.size; i+=2)
+	for(unsigned int i=0; i<args_b.size; i+=2)
 		_mm_clflush((args_b.mem + i));
 
 	_mm_mfence();
