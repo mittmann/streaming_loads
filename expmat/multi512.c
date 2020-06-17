@@ -281,8 +281,8 @@ int main(int ac, char **av)
 	PAPI_event_code_to_name(eventcodes[0],event1);
 	PAPI_event_code_to_name(eventcodes[1],event2);
 	PAPI_event_code_to_name(eventcodes[2],event3);
-	printf("acc_a: %llu, reps_a: %llu, size_a: %uKB \n", (long long unsigned)(args_a.acc)[0][0], args_a.reps, args_a.size*32/1024);
-	printf("acc_b: %llu, reps_b: %llu, size_b: %uKB \n", (long long unsigned)(args_b.acc)[0][0], args_b.reps, args_b.size*32/1024);
+	printf("acc_a: %llu, reps_a: %llu, size_a: %uKB \n", (long long unsigned)(args_a.acc)[0][0], args_a.reps, args_a.size*64/1024);
+	printf("acc_b: %llu, reps_b: %llu, size_b: %uKB \n", (long long unsigned)(args_b.acc)[0][0], args_b.reps, args_b.size*64/1024);
 	printf("PAPI_THREAD_A:%s:%llu\n", event1, args_a.value[0]);
 	printf("PAPI_THREAD_A:%s:%llu\n", event2, args_a.value[1]);
 	printf("PAPI_THREAD_A:%s:%llu\n", event3, args_a.value[2]);
