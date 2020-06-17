@@ -3,7 +3,7 @@ library(DoE.wrapper);
 library(dplyr)
 scenario <- fac.design (
          nfactors=3,
-         replications=20,
+         replications=50,
          repeat.only=FALSE,
          blocks=1,
          randomize=TRUE,
