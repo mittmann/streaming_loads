@@ -39,8 +39,6 @@ do
 			temp2=t
 		fi
 		
-		size2=16
-		reps2=0
 		echo $size1, $reps1, $mem1, $temp1, $size2, $reps2, $mem2, $temp2 >> log
 		ret=1
 		while [ $ret -ne 0 ]; do
