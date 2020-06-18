@@ -46,6 +46,32 @@ void *get_uncached_mem(char *dev, int size)
 	return map;
 }
 
+void *warmup(void* arg) {
+	struct arg_struct *args = (struct arg_struct *) arg;
+	pthread_t current = pthread_self();
+	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
+	__m512i local __attribute__((aligned(64)));
+	__m512i acc __attribute__((aligned(64)));
+	__m512i *mem = args->mem;
+	acc = _mm512_set1_epi64(0);
+//	printf("mem: %p\n", mem);
+	if (args->temporal)
+		for(unsigned int j=0;j<args->reps;j++)
+			for(unsigned int i=0; i<args->size; i++)
+			{
+				local = _mm512_load_si512(&mem[i]);
+				acc = _mm512_add_epi64(acc, local);
+			}
+	else
+		for(unsigned int j=0;j<args->reps;j++)
+			for(unsigned int i=0; i<args->size; i++)
+			{
+				local = _mm512_stream_load_si512(&mem[i]);
+				acc = _mm512_add_epi64(acc, local);
+			}
+	(args->acc)[0] = acc;
+	return 0;
+}
 void *read_stream(void* arg) {
 	int EventSet = PAPI_NULL;
 	struct arg_struct *args = (struct arg_struct *) arg;
@@ -252,6 +278,12 @@ int main(int ac, char **av)
 		fail("PAPI_add_events falhou");	
 	if (PAPI_start(EventSet) != PAPI_OK)
 		fail("PAPI_start falhou");
+*/
+	/*pthread_create(&th1, NULL, warmup, &args_a);
+	pthread_create(&th2, NULL, warmup, &args_b);
+	usleep(30000);
+	pthread_cancel(th1);
+	pthread_cancel(th2);
 */
 	pthread_create(&th1, NULL, read_stream, &args_a);
 	pthread_create(&th2, NULL, read_stream, &args_b);
