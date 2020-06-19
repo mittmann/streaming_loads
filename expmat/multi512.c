@@ -255,7 +255,7 @@ int main(int ac, char **av)
 		_mm512_stream_si512(&(args_a.mem[i]), local);
 	}
 	_mm_mfence();
-	for(unsigned int i=0; i<args_a.size; i+=2)
+	for(unsigned int i=0; i<args_a.size; i++)
 		_mm_clflush((args_a.mem + i));
 	_mm_mfence();
 
@@ -267,7 +267,7 @@ int main(int ac, char **av)
 		_mm512_stream_si512((args_b.mem + i), local);
 	}
 	_mm_mfence();
-	for(unsigned int i=0; i<args_b.size; i+=2)
+	for(unsigned int i=0; i<args_b.size; i++)
 		_mm_clflush((args_b.mem + i));
 
 	_mm_mfence();
