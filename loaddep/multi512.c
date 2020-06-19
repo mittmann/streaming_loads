@@ -11,13 +11,14 @@
 
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
+struct list {
+    uint64_t value;
+    struct list *next_element;
+    char pad[48];
+};
+typedef struct list element;
 void shuffle(int *array, size_t n) {    
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    int usec = tv.tv_usec;
-    srand48(usec);
-
-
+    srand48(0);
     if (n > 1) {
         size_t i;
         for (i = n - 1; i > 0; i--) {
@@ -35,17 +36,13 @@ struct arg_struct {
 	long long value[3];
 	int temporal;
 	int *eventcodes;
-	__m512i *mem;
+	__m512i *mem __attribute__((aligned(64)));
 	__m512i *acc;
 	cpu_set_t cpuset;
+	element *ptr_list __attribute__((aligned(64)));
+
 };
 
-struct list {
-    uint64_t value;
-    struct list *next_element;
-    char pad[48];
-};
-typedef struct list element;
 
 void fail(char* msg)
 {
@@ -72,24 +69,30 @@ void *get_uncached_mem(char *dev, int size)
 
 void *read_stream(void* arg) {
 	int EventSet = PAPI_NULL;
+	__m512d vecd __attribute__((aligned(64)));
 	struct arg_struct *args = (struct arg_struct *) arg;
 	pthread_t current = pthread_self();
 	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
+	element *ptr_this __attribute__((aligned(64)));
+	element *ptr_list __attribute__((aligned(64)));
+
+	ptr_list = (element *)args->mem;
 	/*if (CPU_ISSET(2,&(args->cpuset)))
 		usleep(4000);*/
+	__m512i local __attribute__((aligned(64)));
+	__m512i acc __attribute__((aligned(64)));
+	acc = _mm512_set1_epi64(0);
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
 		fail("PAPI_create_eventset falhou");
 	if (PAPI_add_events(EventSet,args->eventcodes, 3) != PAPI_OK)
 		fail("PAPI_add_events falhou");	
 	if (PAPI_start(EventSet) != PAPI_OK)
 		fail("PAPI_start falhou");
-	__m512i local __attribute__((aligned(64)));
-	__m512i acc __attribute__((aligned(64)));
-	__m512i *mem = args->mem;
-	acc = _mm512_set1_epi64(0);
 //	printf("mem: %p\n", mem);
-	if (!args->temporal)
-    ptr_this = ptr_list;
+   // ptr_this = ptr_list;
+        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_list ) );
+            ptr_this = (element *) &vecd[0];
+if (!(args->temporal))
     for (unsigned i = 0; i < args->reps * args->size; i+=32) {
         vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
             ptr_this = (element *) &vecd[0];
@@ -159,12 +162,10 @@ void *read_stream(void* arg) {
             ptr_this = (element *) &vecd[0];
         vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
             ptr_this = (element *) &vecd[0];
-			}
+	}
 	else
-		for(unsigned int i=0; j < args->reps * args->size ;j+=32)
-			{
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
+	for(uint64_t i=0; i < args->reps * args->size ;i+=32)
+	{
         vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
             ptr_this = (element *) &vecd[0];
         vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
@@ -232,7 +233,7 @@ void *read_stream(void* arg) {
             ptr_this = (element *) &vecd[0];
 
 			}
-	(args->acc)[0] = acc;
+	(args->acc)[0] = _mm512_set1_epi64(ptr_this->value);
 	if (PAPI_stop(EventSet, args->value) != PAPI_OK)
 		fail("PAPI_stop falhou");
 	PAPI_remove_events(EventSet, args->eventcodes, 3);
@@ -244,8 +245,8 @@ int main(int ac, char **av)
 {
 	__m512i tempa;
 
-	element *ptr_list = NULL;
-	element *ptr_this;
+	element *ptr_list __attribute__((aligned(64)));
+	element *ptr_this __attribute__((aligned(64)));
 
 	int eventcode;
 	int eventcodes[3];
@@ -256,9 +257,9 @@ int main(int ac, char **av)
 	int core1;
 
 	pthread_t th1;
-	if(ac < 6)
+	if(ac < 7)
 	{
-		fail("qtd errada de args <TAMANHO_A REPS_A TIPO_A TEMP_A CORE_1> <opt: 3 counters papi>");
+		fail("qtd errada de args <TAMANHO_A REPS_A TIPO_A TEMP_A CORE_1 SHUFFLE(seq/shuffle)> <opt: 3 counters papi>");
 	}
 
 //// ARGS A
@@ -294,7 +295,15 @@ int main(int ac, char **av)
 
 	
 	core1 = atoi(av[5]);
-		
+	
+	int shuff;
+
+	if (!strcmp(av[6],"seq"))
+		shuff = 0;
+	else if (!strcmp(av[6],"shuffle"))
+		shuff = 1;
+	else
+		fail("shuffle invalido");
 ////
 
 	//printf("Core 1: %d, Core 2: %d\n", core1, core2);
@@ -303,35 +312,36 @@ int main(int ac, char **av)
 	CPU_SET(core1, &(args_a.cpuset)); 
 
     uint64_t i = 0, j = 0;
-    uint64_t print = 0;
 
-    long long int prime=args_a.size/2+1;
-    long long int current=-1;
 
-	int *positions = malloc(sizeof(int)*args_a.size);
+    ptr_list =  (element *) args_a.mem;
+    int *positions = malloc(sizeof(int)*args_a.size);
     for (i = 0; i < args_a.size; i++) {
 		positions[i] = i;
 	}
-	shuffle(positions, args_a.size);
-    for (i = 0; i < args_a.size; i++) {
+    if (shuff)
+	    shuffle(positions, args_a.size);
+    /*for (i = 0; i < args_a.size; i++) {
 		printf("position %d = %d\n", i, positions[i]);
-	}
-	return 0;
+    }
+    */
+    ptr_this = ptr_list;
     for (i = 0; i < args_a.size; i++) {
-        ptr_this->value = i;
-    ptr_this = &ptr_list[positions[0]];
+        ptr_list[i].value = i;
+    }
+    ptr_this = &(ptr_list[positions[0]]);
     for (i = 0; i < args_a.size; i++) {
-        ptr_this->next_element = &ptr_list[positions[i]];
+        ptr_this->next_element = &(ptr_list[positions[i]]);
         ptr_this = ptr_this->next_element;
         ptr_this->next_element = NULL;
     }
+    ptr_this->next_element = &(ptr_list[positions[0]]);
 
     asm volatile ("nop");
     asm volatile ("nop");
     asm volatile ("nop");
 
 
-	
 
 	if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
 	{
@@ -339,7 +349,7 @@ int main(int ac, char **av)
 			puts("papi_einval");
 		fail("papi library init falhou");
 	}
-	if ( ac == 6 ) {
+	if ( ac == 7 ) {
 		if( PAPI_event_name_to_code("PAPI_TOT_CYC", &eventcode) != PAPI_OK )
 			fail("PAPI_event_name_to_code falhou cyc");
 		eventcodes[0] = eventcode;
@@ -350,7 +360,7 @@ int main(int ac, char **av)
 			fail("PAPI_event_name_to_code falhou tcr");
 		eventcodes[2] = eventcode;
 	}
-	else if ( ac == 9 ) {
+	else if ( ac == 10 ) {
 		if( PAPI_event_name_to_code(av[11], &eventcode) != PAPI_OK )
 			fail("PAPI_event_name_to_code falhou 1");
 		eventcodes[0] = eventcode;
@@ -374,15 +384,15 @@ int main(int ac, char **av)
 	//printf("usable a: %u, usable b: %u\n", malloc_usable_size(args_a.mem), malloc_usable_size(args_b.mem));
 	
 	printf("size a: %u, mem a: %p\n", args_a.size, args_a.mem);
-	for(uint64_t i=0; i<args_a.size; i++)
+/*	for(uint64_t i=0; i<args_a.size; i++)
 	{
 		//printf("i: %ld - ", i);
 		__m512i local __attribute__((aligned(64)));
 		local = _mm512_set1_epi64(i);
 		_mm512_stream_si512(&(args_a.mem[i]), local);
-	}
+	}*/
 	_mm_mfence();
-	for(unsigned int i=0; i<args_a.size; i+=2)
+	for(unsigned int i=0; i<args_a.size; i++)
 		_mm_clflush((args_a.mem + i));
 	_mm_mfence();
 
