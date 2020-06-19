@@ -48,9 +48,12 @@ void *get_uncached_mem(char *dev, int size)
 
 void *read_stream(void* arg) {
 	int EventSet = PAPI_NULL;
+	unsigned int size, reps;
 	struct arg_struct *args = (struct arg_struct *) arg;
 	pthread_t current = pthread_self();
 	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
+	size = args->size;
+	reps = args->reps;
 	/*if (CPU_ISSET(2,&(args->cpuset)))
 		usleep(4000);*/
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
@@ -65,15 +68,15 @@ void *read_stream(void* arg) {
 	acc = _mm256_set1_epi64x(0);
 //	printf("mem: %p\n", mem);
 	if (args->temporal)
-		for(unsigned int j=0;j<args->reps;j++)
-			for(unsigned int i=0; i<args->size; i+=2)
+		for(unsigned int j=0;j<reps;j++)
+			for(unsigned int i=0; i<size; i+=2)
 			{
 				local = _mm256_load_si256(&mem[i]);
 				acc = _mm256_add_epi64(acc, local);
 			}
 	else
-		for(unsigned int j=0;j<args->reps;j++)
-			for(unsigned int i=0; i<args->size; i+=2)
+		for(unsigned int j=0;j<reps;j++)
+			for(unsigned int i=0; i<size; i+=2)
 			{
 				local = _mm256_stream_load_si256(&mem[i]);
 				acc = _mm256_add_epi64(acc, local);

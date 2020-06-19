@@ -46,7 +46,7 @@ void *get_uncached_mem(char *dev, int size)
 	return map;
 }
 
-void *warmup(void* arg) {
+/*void *warmup(void* arg) {
 	struct arg_struct *args = (struct arg_struct *) arg;
 	pthread_t current = pthread_self();
 	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
@@ -72,11 +72,15 @@ void *warmup(void* arg) {
 	(args->acc)[0] = acc;
 	return 0;
 }
+*/
 void *read_stream(void* arg) {
 	int EventSet = PAPI_NULL;
+	unsigned int size, reps;
 	struct arg_struct *args = (struct arg_struct *) arg;
 	pthread_t current = pthread_self();
 	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
+	size = args->size;
+	reps = args->reps;
 	/*if (CPU_ISSET(2,&(args->cpuset)))
 		usleep(4000);*/
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
@@ -91,15 +95,15 @@ void *read_stream(void* arg) {
 	acc = _mm512_set1_epi64(0);
 //	printf("mem: %p\n", mem);
 	if (args->temporal)
-		for(unsigned int j=0;j<args->reps;j++)
-			for(unsigned int i=0; i<args->size; i++)
+		for(unsigned int j=0;j<reps;j++)
+			for(unsigned int i=0; i<size; i++)
 			{
 				local = _mm512_load_si512(&mem[i]);
 				acc = _mm512_add_epi64(acc, local);
 			}
 	else
-		for(unsigned int j=0;j<args->reps;j++)
-			for(unsigned int i=0; i<args->size; i++)
+		for(unsigned int j=0;j<reps;j++)
+			for(unsigned int i=0; i<size; i++)
 			{
 				local = _mm512_stream_load_si512(&mem[i]);
 				acc = _mm512_add_epi64(acc, local);
