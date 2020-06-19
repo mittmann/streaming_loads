@@ -93,7 +93,7 @@ void *read_stream(void* arg) {
         vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_list ) );
             ptr_this = (element *) &vecd[0];
 if (!(args->temporal))
-    for (unsigned i = 0; i < args->reps * args->size; i+=32) {
+    for (unsigned i = 0; i < args->reps * args->size/32; i++) {
         vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
             ptr_this = (element *) &vecd[0];
         vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
@@ -164,7 +164,7 @@ if (!(args->temporal))
             ptr_this = (element *) &vecd[0];
 	}
 	else
-	for(uint64_t i=0; i < args->reps * args->size ;i+=32)
+	for(uint64_t i=0; i < args->reps * args->size/32 ;i++)
 	{
         vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
             ptr_this = (element *) &vecd[0];
