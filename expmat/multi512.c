@@ -98,7 +98,9 @@ void *read_stream(void* arg) {
 		for(unsigned int j=0;j<reps;j++)
 			for(unsigned int i=0; i<size; i++)
 			{
+				//asm volatile ("add %0, %1, %2; vmovdqa64 %3, (%0)":"=r"(add), "=x"(local): "r"(mem),"r"(i):);
 				local = _mm512_load_si512(&mem[i]);
+				//asm volatile ("nop");
 				acc = _mm512_add_epi64(acc, local);
 			}
 	else
