@@ -1,7 +1,7 @@
 library(dplyr);
 #library(ggplot2);
 library(tidyr);
-library(outliers);
+#library(outliers);
 args = commandArgs(trailingOnly=TRUE)
 df <- read.csv(args[1]);
 
