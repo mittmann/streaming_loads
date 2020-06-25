@@ -36,6 +36,7 @@ struct arg_struct {
 	long long unsigned reps;
 	long long value[3];
 	int temporal;
+	int equal;
 	int *eventcodes;
 	__m512i *mem __attribute__((aligned(64)));
 	__m512i *acc;
@@ -100,7 +101,13 @@ if (!(args->temporal))
 	    M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
 	                 ptr_this = (element *) &vecd[0];)
 	}
-else 
+else
+    if (args->equal)	
+    for(uint64_t i=0; i < reps * size/32 ;i++)	{
+    	M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) ); asm volatile (""::: "memory");
+                     ptr_this = (element *) &vecd[0]; )
+	}
+    else
     for(uint64_t i=0; i < reps * size/32 ;i++)	{
     	M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
                      ptr_this = (element *) &vecd[0]; )
@@ -158,8 +165,14 @@ int main(int ac, char **av)
 
 	if(!strcmp(av[4],"nt"))
 		args_a.temporal = 0;
-	else if(!strcmp(av[4],"t"))
+	else if(!strcmp(av[4],"t")) {
 		args_a.temporal = 1;
+		args_a.equal = 0;
+	}
+	else if(!strcmp(av[4],"e")) {
+		args_a.temporal = 1;
+		args_a.equal = 1;
+	}
 	else
 	{
 		fail("temporalidade invalida");
