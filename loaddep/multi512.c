@@ -75,7 +75,9 @@ void *read_stream(void* arg) {
 	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
 	element *ptr_this __attribute__((aligned(64)));
 	element *ptr_list __attribute__((aligned(64)));
-
+	unsigned reps, size;
+	reps = args->reps;
+	size = args->size;
 	ptr_list = (element *)args->mem;
 	/*if (CPU_ISSET(2,&(args->cpuset)))
 		usleep(4000);*/
@@ -93,7 +95,7 @@ void *read_stream(void* arg) {
         vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_list ) );
             ptr_this = (element *) &vecd[0];
 if (!(args->temporal))
-    for (unsigned i = 0; i < args->reps * args->size/32; i++) {
+    for (unsigned i = 0; i < reps * size/32; i++) {
         vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
             ptr_this = (element *) &vecd[0];
         vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
@@ -164,7 +166,7 @@ if (!(args->temporal))
             ptr_this = (element *) &vecd[0];
 	}
 	else
-	for(uint64_t i=0; i < args->reps * args->size/32 ;i++)
+	for(uint64_t i=0; i < reps * size/32 ;i++)
 	{
         vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
             ptr_this = (element *) &vecd[0];
@@ -361,13 +363,13 @@ int main(int ac, char **av)
 		eventcodes[2] = eventcode;
 	}
 	else if ( ac == 10 ) {
-		if( PAPI_event_name_to_code(av[11], &eventcode) != PAPI_OK )
+		if( PAPI_event_name_to_code(av[7], &eventcode) != PAPI_OK )
 			fail("PAPI_event_name_to_code falhou 1");
 		eventcodes[0] = eventcode;
-		if( PAPI_event_name_to_code(av[12], &eventcode) != PAPI_OK )
+		if( PAPI_event_name_to_code(av[8], &eventcode) != PAPI_OK )
 			fail("PAPI_event_name_to_code falhou 2");
 		eventcodes[1] = eventcode;
-		if( PAPI_event_name_to_code(av[13], &eventcode) != PAPI_OK )
+		if( PAPI_event_name_to_code(av[9], &eventcode) != PAPI_OK )
 			fail("PAPI_event_name_to_code falhou 3");
 		eventcodes[2] = eventcode;
 	}
