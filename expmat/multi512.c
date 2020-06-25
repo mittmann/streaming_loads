@@ -17,6 +17,7 @@ struct arg_struct {
 	long long unsigned reps;
 	long long value[3];
 	int temporal;
+	int equal;
 	int *eventcodes;
 	__m512i *mem;
 	__m512i *acc;
@@ -94,22 +95,30 @@ void *read_stream(void* arg) {
 	__m512i *mem = args->mem;
 	acc = _mm512_set1_epi64(0);
 //	printf("mem: %p\n", mem);
-	if (args->temporal)
+	if (!args->temporal)
 		for(unsigned int j=0;j<reps;j++)
 			for(unsigned int i=0; i<size; i++)
 			{
 				//asm volatile ("add %0, %1, %2; vmovdqa64 %3, (%0)":"=r"(add), "=x"(local): "r"(mem),"r"(i):);
-				local = _mm512_load_si512(&mem[i]);
-				//asm volatile ("nop");
-				acc = _mm512_add_epi64(acc, local);
-			}
-	else
-		for(unsigned int j=0;j<reps;j++)
-			for(unsigned int i=0; i<size; i++)
-			{
 				local = _mm512_stream_load_si512(&mem[i]);
 				acc = _mm512_add_epi64(acc, local);
 			}
+	else
+		if(args->equal)
+			for(unsigned int j=0;j<reps;j++)
+				for(unsigned int i=0; i<size; i++)
+				{
+					local = _mm512_load_si512(&mem[i]);
+					asm volatile (""::: "memory");
+					acc = _mm512_add_epi64(acc, local);
+				}
+		else
+			for(unsigned int j=0;j<reps;j++)
+				for(unsigned int i=0; i<size; i++)
+				{
+					local = _mm512_load_si512(&mem[i]);
+					acc = _mm512_add_epi64(acc, local);
+				}
 	(args->acc)[0] = acc;
 	if (PAPI_stop(EventSet, args->value) != PAPI_OK)
 		fail("PAPI_stop falhou");
@@ -162,8 +171,14 @@ int main(int ac, char **av)
 
 	if(!strcmp(av[4],"nt"))
 		args_a.temporal = 0;
-	else if(!strcmp(av[4],"t"))
+	else if(!strcmp(av[4],"t")) {
 		args_a.temporal = 1;
+		args_a.equal = 0;
+	}
+	else if(!strcmp(av[4],"e")) {
+		args_a.temporal = 1;
+		args_a.equal = 1;
+	}
 	else
 	{
 		fail("temporalidade invalida");
@@ -193,8 +208,14 @@ int main(int ac, char **av)
 
 	if(!strcmp(av[8],"nt"))
 		args_b.temporal = 0;
-	else if(!strcmp(av[8],"t"))
+	else if(!strcmp(av[8],"t")) {
 		args_b.temporal = 1;
+		args_b.equal = 0;
+	}
+	else if(!strcmp(av[8],"e")) {
+		args_b.temporal = 1;
+		args_b.equal = 1;
+	}
 	else
 	{
 		fail("temporalidade invalida");
