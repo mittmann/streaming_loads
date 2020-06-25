@@ -12,8 +12,8 @@
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 struct list {
-    uint64_t value;
     struct list *next_element;
+    uint64_t value;
     char pad[48];
 };
 typedef struct list element;
@@ -411,9 +411,21 @@ int main(int ac, char **av)
 	PAPI_shutdown();
 
 	char event1[128],event2[128],event3[128];
-	PAPI_event_code_to_name(eventcodes[0],event1);
+	/*PAPI_event_code_to_name(eventcodes[0],event1);
 	PAPI_event_code_to_name(eventcodes[1],event2);
 	PAPI_event_code_to_name(eventcodes[2],event3);
+	*/
+	if(ac == 10) {
+		strcpy(event1,av[7]);
+		strcpy(event2,av[8]);
+		strcpy(event3,av[9]);
+	}
+	else
+	{
+		PAPI_event_code_to_name(eventcodes[0],event1);
+		PAPI_event_code_to_name(eventcodes[1],event2);
+		PAPI_event_code_to_name(eventcodes[2],event3);
+	}
 	printf("acc_a: %llu, reps_a: %llu, size_a: %uKB \n", (long long unsigned)(args_a.acc)[0][0], args_a.reps, args_a.size*64/1024);
 	printf("PAPI_THREAD_A:%s:%llu\n", event1, args_a.value[0]);
 	printf("PAPI_THREAD_A:%s:%llu\n", event2, args_a.value[1]);
