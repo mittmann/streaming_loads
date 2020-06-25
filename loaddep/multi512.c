@@ -9,6 +9,7 @@
 #include <string.h>
 #include <pthread.h>
 
+#define M_REPEAT_32(X) X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 struct list {
@@ -96,145 +97,14 @@ void *read_stream(void* arg) {
             ptr_this = (element *) &vecd[0];
 if (!(args->temporal))
     for (unsigned i = 0; i < reps * size/32; i++) {
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-
-
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
+	    M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
+	                 ptr_this = (element *) &vecd[0];)
 	}
-	else
-	for(uint64_t i=0; i < reps * size/32 ;i++)
-	{
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
-            ptr_this = (element *) &vecd[0];
-
-			}
+else 
+    for(uint64_t i=0; i < reps * size/32 ;i++)	{
+    	M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
+                     ptr_this = (element *) &vecd[0]; )
+	}
 	(args->acc)[0] = _mm512_set1_epi64(ptr_this->value);
 	if (PAPI_stop(EventSet, args->value) != PAPI_OK)
 		fail("PAPI_stop falhou");
