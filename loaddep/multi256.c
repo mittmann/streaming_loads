@@ -93,25 +93,23 @@ void *read_stream(void* arg) {
    // ptr_this = ptr_list;
         vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_list ) );
             ptr_this = (element *) &vecd[0];
-	uint64_t i;
 if (!(args->temporal))
-    for (i = 0; i < reps * size/32; i++) {
+    for (unsigned i = 0; i < reps * size/32; i++) {
 	    M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
 	                 ptr_this = (element *) &vecd[0];)
 	}
 else
     if (args->equal)	
-    for(i=0; i < reps * size/32 ;i++)	{
+    for(uint64_t i=0; i < reps * size/32 ;i++)	{
     	M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) ); asm volatile (""::: "memory");
                      ptr_this = (element *) &vecd[0]; )
 	}
     else
-    for(i=0; i < reps * size/32 ;i++)	{
+    for(uint64_t i=0; i < reps * size/32 ;i++)	{
     	M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
                      ptr_this = (element *) &vecd[0]; )
 	}
 	(args->acc)[0] = _mm512_set1_epi64(ptr_this->value);
-	printf("\ni: %lu\n", i);
 	if (PAPI_stop(EventSet, args->value) != PAPI_OK)
 		fail("PAPI_stop falhou");
 	PAPI_remove_events(EventSet, args->eventcodes, 3);
@@ -211,7 +209,7 @@ int main(int ac, char **av)
     */
     ptr_this = ptr_list;
     for (i = 0; i < args_a.size; i++) {
-        ptr_list[i].value = i+7;
+        ptr_list[i].value = i;
     }
     ptr_this = &(ptr_list[positions[0]]);
     for (i = 0; i < args_a.size; i++) {
@@ -225,7 +223,7 @@ int main(int ac, char **av)
     asm volatile ("nop");
     asm volatile ("nop");
 
-	printf("size of: %ld ", sizeof(element));
+
 
 	if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
 	{
@@ -312,6 +310,6 @@ int main(int ac, char **av)
 	printf("PAPI_THREAD_A:%s:%llu\n", event1, args_a.value[0]);
 	printf("PAPI_THREAD_A:%s:%llu\n", event2, args_a.value[1]);
 	printf("PAPI_THREAD_A:%s:%llu\n", event3, args_a.value[2]);
-	return 0;
+	return (long long unsigned)(args_a.acc)[0][0];
 
 }
