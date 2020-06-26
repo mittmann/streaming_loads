@@ -15,6 +15,7 @@
 struct list {
     struct list *next_element;
     uint64_t value;
+    //char pad[48];
     char pad[48];
 };
 typedef struct list element;
@@ -38,8 +39,8 @@ struct arg_struct {
 	int temporal;
 	int equal;
 	int *eventcodes;
-	__m512i *mem __attribute__((aligned(64)));
-	__m512i *acc;
+	__m256i *mem __attribute__((aligned(64)));
+	__m256i *acc;
 	cpu_set_t cpuset;
 	element *ptr_list __attribute__((aligned(64)));
 
@@ -71,7 +72,7 @@ void *get_uncached_mem(char *dev, int size)
 
 void *read_stream(void* arg) {
 	int EventSet = PAPI_NULL;
-	__m512d vecd __attribute__((aligned(64)));
+	__m256d vecd __attribute__((aligned(64)));
 	struct arg_struct *args = (struct arg_struct *) arg;
 	pthread_t current = pthread_self();
 	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
@@ -91,25 +92,27 @@ void *read_stream(void* arg) {
 		fail("PAPI_start falhou");
 //	printf("mem: %p\n", mem);
    // ptr_this = ptr_list;
-        vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_list ) );
+        vecd = _mm256_castsi256_pd ( _mm256_load_si256( (__m256i*) ptr_list ) );
             ptr_this = (element *) &vecd[0];
+	uint64_t i;
 if (!(args->temporal))
-    for (unsigned i = 0; i < reps * size/32; i++) {
-	    M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_stream_load_si512( (__m512i*) ptr_this->next_element ) );
+    for (i = 0; i < reps * size/32; i++) {
+	    M_REPEAT_32( vecd = _mm256_castsi256_pd ( _mm256_stream_load_si256( (__m256i*) ptr_this->next_element ) );
 	                 ptr_this = (element *) &vecd[0];)
 	}
 else
     if (args->equal)	
-    for(uint64_t i=0; i < reps * size/32 ;i++)	{
-    	M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) ); asm volatile (""::: "memory");
+    for(i=0; i < reps * size/32 ;i++)	{
+    	M_REPEAT_32( vecd = _mm256_castsi256_pd ( _mm256_load_si256( (__m256i*) ptr_this->next_element ) ); asm volatile (""::: "memory");
                      ptr_this = (element *) &vecd[0]; )
 	}
     else
-    for(uint64_t i=0; i < reps * size/32 ;i++)	{
-    	M_REPEAT_32( vecd = _mm512_castsi512_pd ( _mm512_load_si512( (__m512i*) ptr_this->next_element ) );
+    for(i=0; i < reps * size/32 ;i++)	{
+    	M_REPEAT_32( vecd = _mm256_castsi256_pd ( _mm256_load_si256( (__m256i*) ptr_this->next_element ) );
                      ptr_this = (element *) &vecd[0]; )
 	}
-	(args->acc)[0] = _mm512_set1_epi64(ptr_this->value);
+	(args->acc)[0] = _mm256_set1_epi64x(ptr_this->value);
+	printf("\ni: %lu\n", i);
 	if (PAPI_stop(EventSet, args->value) != PAPI_OK)
 		fail("PAPI_stop falhou");
 	PAPI_remove_events(EventSet, args->eventcodes, 3);
@@ -119,7 +122,7 @@ else
 
 int main(int ac, char **av)
 {
-	__m512i tempa;
+	__m256i tempa;
 
 	element *ptr_list __attribute__((aligned(64)));
 	element *ptr_this __attribute__((aligned(64)));
@@ -144,17 +147,17 @@ int main(int ac, char **av)
 
 	if(!strcmp(av[3],"unc")) 
 		if ( args_a.size/16 > 128)
-			args_a.mem = (__m512i*)get_uncached_mem("unc", args_a.size*64);
+			args_a.mem = (__m256i*)get_uncached_mem("unc", args_a.size*64);
 		else
-			args_a.mem = (__m512i*)get_uncached_mem("unc", 1024*128);
+			args_a.mem = (__m256i*)get_uncached_mem("unc", 1024*128);
 	else if(!strcmp(av[3],"wc")) 
 		if ( args_a.size/16 > 128)
-			args_a.mem = (__m512i*)get_uncached_mem("wc", args_a.size*64);
+			args_a.mem = (__m256i*)get_uncached_mem("wc", args_a.size*64);
 		else
-			args_a.mem = (__m512i*)get_uncached_mem("wc", 1024*128);
+			args_a.mem = (__m256i*)get_uncached_mem("wc", 1024*128);
 		
 	else if(!strcmp(av[3],"wb"))
-		args_a.mem = (__m512i*)_mm_malloc(args_a.size*64, 64);
+		args_a.mem = (__m256i*)_mm_malloc(args_a.size*64, 64);
 	else
 	{
 		fail("tipo de mem invalido");
@@ -209,7 +212,7 @@ int main(int ac, char **av)
     */
     ptr_this = ptr_list;
     for (i = 0; i < args_a.size; i++) {
-        ptr_list[i].value = i;
+        ptr_list[i].value = i+7;
     }
     ptr_this = &(ptr_list[positions[0]]);
     for (i = 0; i < args_a.size; i++) {
@@ -223,7 +226,7 @@ int main(int ac, char **av)
     asm volatile ("nop");
     asm volatile ("nop");
 
-
+	printf("size of: %ld ", sizeof(element));
 
 	if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
 	{
@@ -260,7 +263,7 @@ int main(int ac, char **av)
 
 	_mm_mfence();
 
-//	__m512i *mem = ((__m512i*)map);
+//	__m256i *mem = ((__m256i*)map);
 
 	
 	//printf("usable a: %u, usable b: %u\n", malloc_usable_size(args_a.mem), malloc_usable_size(args_b.mem));
@@ -269,9 +272,9 @@ int main(int ac, char **av)
 /*	for(uint64_t i=0; i<args_a.size; i++)
 	{
 		//printf("i: %ld - ", i);
-		__m512i local __attribute__((aligned(64)));
-		local = _mm512_set1_epi64(i);
-		_mm512_stream_si512(&(args_a.mem[i]), local);
+		__m256i local __attribute__((aligned(64)));
+		local = _mm256_set1_epi64(i);
+		_mm256_stream_si256(&(args_a.mem[i]), local);
 	}*/
 	_mm_mfence();
 	for(unsigned int i=0; i<args_a.size; i++)
@@ -310,6 +313,6 @@ int main(int ac, char **av)
 	printf("PAPI_THREAD_A:%s:%llu\n", event1, args_a.value[0]);
 	printf("PAPI_THREAD_A:%s:%llu\n", event2, args_a.value[1]);
 	printf("PAPI_THREAD_A:%s:%llu\n", event3, args_a.value[2]);
-	return (long long unsigned)(args_a.acc)[0][0];
+	return 0;
 
 }
