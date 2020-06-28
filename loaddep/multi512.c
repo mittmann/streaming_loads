@@ -162,7 +162,7 @@ int main(int ac, char **av)
 		fail("tipo de mem invalido");
 	}
 
-	if(!strcmp(av[4],"nt"))
+	if(!strcmp(av[4],"n"))
 		args_a.temporal = 0;
 	else if(!strcmp(av[4],"t")) {
 		args_a.temporal = 1;
