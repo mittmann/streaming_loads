@@ -1,6 +1,6 @@
 CC = gcc
 LD = gcc
-CFLAGS = $(FLAGS)
+CFLAGS = $(FLAGS) $(EXT512)
 RM = rm -f
 
 %.o : %.c
