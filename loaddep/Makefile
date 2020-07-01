@@ -1,6 +1,6 @@
 CC = gcc
 LD = gcc
-CFLAGS = $(FLAGS) $(EXT512)
+CFLAGS = $(FLAGS)
 RM = rm -f
 
 %.o : %.c
@@ -22,10 +22,10 @@ OBJ_512 = multi512.o
 all:	$(AVX2) $(AVX512)
 
 $(AVX2):	$(OBJ_2)
-	$(LD) $(LDFLAGS) -o $(AVX2) $(OBJ_2) $(LIBRARY)
+	$(LD) $(LDFLAGS) -o $(AVX2) $(OBJ_2) $(LIBRARY) $(EXT2)
 
 $(AVX512):	$(OBJ_512)
-	$(LD) $(LDFLAGS) -o $(AVX512) $(OBJ_512) $(LIBRARY)
+	$(LD) $(LDFLAGS) -o $(AVX512) $(OBJ_512) $(LIBRARY) $(EXT512)
 
 
 clean:	
