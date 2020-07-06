@@ -328,16 +328,16 @@ int main(int ac, char **av)
 	printf("acc_a: %llu, reps_a: %llu, size_a: %uKB \n", (long long unsigned)(args_a.acc)[0][0], args_a.reps, args_a.size*32/1024);
 	printf("acc_b: %llu, reps_b: %llu, size_b: %uKB \n", (long long unsigned)(args_b.acc)[0][0], args_b.reps, args_b.size*32/1024);
 	if (nevents > 0 ) {
-		printf("PAPI_THREAD_A:%s:%llu\n", event1, args_a.value[0]);
-		printf("PAPI_THREAD_B:%s:%llu\n", event1, args_b.value[0]);
+		printf("PAPI_THREAD_A;%s;%llu\n", event1, args_a.value[0]);
+		printf("PAPI_THREAD_B;%s;%llu\n", event1, args_b.value[0]);
 	}
 	if (nevents > 1 ) {
-		printf("PAPI_THREAD_A:%s:%llu\n", event2, args_a.value[1]);
-		printf("PAPI_THREAD_B:%s:%llu\n", event2, args_b.value[1]);
+		printf("PAPI_THREAD_A;%s;%llu\n", event2, args_a.value[1]);
+		printf("PAPI_THREAD_B;%s;%llu\n", event2, args_b.value[1]);
 	}
 	if (nevents > 2 ) {
-		printf("PAPI_THREAD_A:%s:%llu\n", event3, args_a.value[2]);
-		printf("PAPI_THREAD_B:%s:%llu\n", event3, args_b.value[2]);
+		printf("PAPI_THREAD_A;%s;%llu\n", event3, args_a.value[2]);
+		printf("PAPI_THREAD_B;%s;%llu\n", event3, args_b.value[2]);
 	}
 	return (long long unsigned)(args_a.acc)[0][0] + (long long unsigned)(args_b.acc)[0][0];
 
