@@ -20,23 +20,23 @@ do
 		if [ $f7 == "\"nn\"" ]; then
 			mem1=wc
 			mem2=wc
-			temp1=nt
-			temp2=nt
+			temp1=n
+			temp2=n
 		elif [ $f7 == "\"nt\"" ]; then
 			mem1=wc
 			mem2=wb
-			temp1=nt
-			temp2=t
+			temp1=n
+			temp2=e
 		elif [ $f7 == "\"tn\"" ]; then
 			mem1=wb
 			mem2=wc
-			temp1=t
-			temp2=nt
+			temp1=e
+			temp2=n
 		elif [ $f7 == "\"tt\"" ]; then
 			mem1=wb
 			mem2=wb
 			temp1=e
-			temp2=t
+			temp2=e
 		fi
 		echo $size1, $reps1, $mem1, $temp1, $size2, $reps2, $mem2, $temp2 >> log
 		ret=1
