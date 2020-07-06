@@ -12,7 +12,7 @@
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 
-int nevents = 0;
+int nevents = 3;
 
 struct arg_struct {
 	unsigned size;
@@ -311,12 +311,20 @@ int main(int ac, char **av)
 	PAPI_shutdown();
 
 	char event1[128],event2[128],event3[128];
+	if(ac > 11) {
 	if (nevents > 0 )
-		PAPI_event_code_to_name(eventcodes[0],event1);
+        strcpy(event1,av[11]);
 	if (nevents > 1 )
-		PAPI_event_code_to_name(eventcodes[1],event2);
+        strcpy(event2,av[12]);
 	if (nevents > 2 )
-		PAPI_event_code_to_name(eventcodes[2],event3);
+        strcpy(event3,av[13]);
+    }
+    else
+    {
+        PAPI_event_code_to_name(eventcodes[0],event1);
+        PAPI_event_code_to_name(eventcodes[1],event2);
+        PAPI_event_code_to_name(eventcodes[2],event3);
+    }
 	printf("acc_a: %llu, reps_a: %llu, size_a: %uKB \n", (long long unsigned)(args_a.acc)[0][0], args_a.reps, args_a.size*32/1024);
 	printf("acc_b: %llu, reps_b: %llu, size_b: %uKB \n", (long long unsigned)(args_b.acc)[0][0], args_b.reps, args_b.size*32/1024);
 	if (nevents > 0 ) {
