@@ -12,6 +12,8 @@
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 
+int nevents = 3;
+
 struct arg_struct {
 	unsigned size;
 	long long unsigned reps;
@@ -86,7 +88,7 @@ void *read_stream(void* arg) {
 		usleep(4000);*/
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
 		fail("PAPI_create_eventset falhou");
-	if (PAPI_add_events(EventSet,args->eventcodes, 3) != PAPI_OK)
+	if (PAPI_add_events(EventSet,args->eventcodes, nevents) != PAPI_OK)
 		fail("PAPI_add_events falhou");	
 	if (PAPI_start(EventSet) != PAPI_OK)
 		fail("PAPI_start falhou");
@@ -122,7 +124,7 @@ void *read_stream(void* arg) {
 	(args->acc)[0] = acc;
 	if (PAPI_stop(EventSet, args->value) != PAPI_OK)
 		fail("PAPI_stop falhou");
-	PAPI_remove_events(EventSet, args->eventcodes, 3);
+	PAPI_remove_events(EventSet, args->eventcodes, nevents);
 	return 0;
 }
 
@@ -248,17 +250,26 @@ int main(int ac, char **av)
 			fail("PAPI_event_name_to_code falhou tcr");
 		eventcodes[2] = eventcode;
 	}
-	else if ( ac == 14 ) {
-		if( PAPI_event_name_to_code(av[11], &eventcode) != PAPI_OK )
-			fail("PAPI_event_name_to_code falhou 1");
-		eventcodes[0] = eventcode;
-		if( PAPI_event_name_to_code(av[12], &eventcode) != PAPI_OK )
-			fail("PAPI_event_name_to_code falhou 2");
-		eventcodes[1] = eventcode;
-		if( PAPI_event_name_to_code(av[13], &eventcode) != PAPI_OK )
-			fail("PAPI_event_name_to_code falhou 3");
-		eventcodes[2] = eventcode;
-	}
+	else if ( ac <= 14 ) {
+        if (ac > 11 ) {
+            if( PAPI_event_name_to_code(av[11], &eventcode) != PAPI_OK )
+                fail("PAPI_event_name_to_code falhou 1");
+            eventcodes[0] = eventcode;
+            nevents = 1;
+        }
+        if (ac > 12 ) {
+            if( PAPI_event_name_to_code(av[12], &eventcode) != PAPI_OK )
+                fail("PAPI_event_name_to_code falhou 2");
+            eventcodes[1] = eventcode;
+            nevents = 2;
+        }
+        if (ac > 13 ) {
+            if( PAPI_event_name_to_code(av[13], &eventcode) != PAPI_OK )
+                fail("PAPI_event_name_to_code falhou 3");
+            eventcodes[2] = eventcode;
+            nevents = 3;
+        }
+    }
 	else
 		fail("quantidade invalida de argumentos");
 	
@@ -325,18 +336,33 @@ int main(int ac, char **av)
 */
 	PAPI_shutdown();
 
-	char event1[128],event2[128],event3[128];
-	PAPI_event_code_to_name(eventcodes[0],event1);
-	PAPI_event_code_to_name(eventcodes[1],event2);
-	PAPI_event_code_to_name(eventcodes[2],event3);
-	printf("acc_a: %llu, reps_a: %llu, size_a: %uKB \n", (long long unsigned)(args_a.acc)[0][0], args_a.reps, args_a.size*64/1024);
-	printf("acc_b: %llu, reps_b: %llu, size_b: %uKB \n", (long long unsigned)(args_b.acc)[0][0], args_b.reps, args_b.size*64/1024);
-	printf("PAPI_THREAD_A:%s:%llu\n", event1, args_a.value[0]);
-	printf("PAPI_THREAD_A:%s:%llu\n", event2, args_a.value[1]);
-	printf("PAPI_THREAD_A:%s:%llu\n", event3, args_a.value[2]);
-	printf("PAPI_THREAD_B:%s:%llu\n", event1, args_b.value[0]);
-	printf("PAPI_THREAD_B:%s:%llu\n", event2, args_b.value[1]);
-	printf("PAPI_THREAD_B:%s:%llu\n", event3, args_b.value[2]);
-	return (long long unsigned)(args_a.acc)[0][0] + (long long unsigned)(args_b.acc)[0][0];
-
+    char event1[128],event2[128],event3[128];
+    if(ac > 11) {
+    if (nevents > 0 )
+        strcpy(event1,av[11]);
+    if (nevents > 1 )
+        strcpy(event2,av[12]);
+    if (nevents > 2 )
+        strcpy(event3,av[13]);
+    }
+    else
+    {
+        PAPI_event_code_to_name(eventcodes[0],event1);
+        PAPI_event_code_to_name(eventcodes[1],event2);
+        PAPI_event_code_to_name(eventcodes[2],event3);
+    }
+    printf("acc_a: %llu, reps_a: %llu, size_a: %uKB \n", (long long unsigned)(args_a.acc)[0][0], args_a.reps, args_a.size*32/1024);
+    printf("acc_b: %llu, reps_b: %llu, size_b: %uKB \n", (long long unsigned)(args_b.acc)[0][0], args_b.reps, args_b.size*32/1024);
+    if (nevents > 0 ) {
+        printf("PAPI_THREAD_A;%s;%llu\n", event1, args_a.value[0]);
+        printf("PAPI_THREAD_B;%s;%llu\n", event1, args_b.value[0]);
+    }
+    if (nevents > 1 ) {
+        printf("PAPI_THREAD_A;%s;%llu\n", event2, args_a.value[1]);
+        printf("PAPI_THREAD_B;%s;%llu\n", event2, args_b.value[1]);
+    }
+    if (nevents > 2 ) {
+        printf("PAPI_THREAD_A;%s;%llu\n", event3, args_a.value[2]);
+        printf("PAPI_THREAD_B;%s;%llu\n", event3, args_b.value[2]);
+    }
 }
