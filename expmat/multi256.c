@@ -312,12 +312,12 @@ int main(int ac, char **av)
 
 	char event1[128],event2[128],event3[128];
 	if(ac > 11) {
-	if (nevents > 0 )
-        strcpy(event1,av[11]);
-	if (nevents > 1 )
-        strcpy(event2,av[12]);
-	if (nevents > 2 )
-        strcpy(event3,av[13]);
+		if (nevents > 0 )
+        	strcpy(event1,av[11]);
+		if (nevents > 1 )
+    	    strcpy(event2,av[12]);
+		if (nevents > 2 )
+    	    strcpy(event3,av[13]);
     }
     else
     {
