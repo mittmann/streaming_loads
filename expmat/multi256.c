@@ -279,11 +279,6 @@ int main(int ac, char **av)
 	}
 	_mm_mfence();
 	asm volatile ("nop"::: "memory");
-	__m256i aux;
-	aux = _mm256_set1_epi64x(0);
-	for (int i=0; i<BUF_SIZE/32; i++) 
-		aux+= args_b.reps + tempa[0] + buffer[i];
-	printf("%lld", aux[0]);
 
 	for(uint64_t i=0; i<args_a.size; i++)
 	{
@@ -298,6 +293,12 @@ int main(int ac, char **av)
 	}
 	_mm_mfence();
 
+	asm volatile ("nop"::: "memory");
+	__m256i aux;
+	aux = _mm256_set1_epi64x(0);
+	for (int i=0; i<BUF_SIZE/32; i++) 
+		aux+= args_b.reps + tempa[0] + buffer[i];
+	printf("%lld", aux[0]);
 	asm volatile ("nop"::: "memory");
 	_mm_free(buffer);
 
