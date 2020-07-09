@@ -8,9 +8,9 @@
 #include <papi.h>
 #include <string.h>
 #include <pthread.h>
-
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
+#define BUF_SIZE 1024*1024*1024
 
 int nevents = 3;
 
@@ -49,33 +49,6 @@ void *get_uncached_mem(char *dev, int size)
 	return map;
 }
 
-/*void *warmup(void* arg) {
-	struct arg_struct *args = (struct arg_struct *) arg;
-	pthread_t current = pthread_self();
-	pthread_setaffinity_np(current, sizeof(cpu_set_t), &(args->cpuset));
-	__m512i local __attribute__((aligned(64)));
-	__m512i acc __attribute__((aligned(64)));
-	__m512i *mem = args->mem;
-	acc = _mm512_set1_epi64(0);
-//	printf("mem: %p\n", mem);
-	if (args->temporal)
-		for(unsigned int j=0;j<args->reps;j++)
-			for(unsigned int i=0; i<args->size; i++)
-			{
-				local = _mm512_load_si512(&mem[i]);
-				acc = _mm512_add_epi64(acc, local);
-			}
-	else
-		for(unsigned int j=0;j<args->reps;j++)
-			for(unsigned int i=0; i<args->size; i++)
-			{
-				local = _mm512_stream_load_si512(&mem[i]);
-				acc = _mm512_add_epi64(acc, local);
-			}
-	(args->acc)[0] = acc;
-	return 0;
-}
-*/
 void *read_stream(void* arg) {
 	int EventSet = PAPI_NULL;
 	unsigned int size, reps;
@@ -86,12 +59,14 @@ void *read_stream(void* arg) {
 	reps = args->reps;
 	/*if (CPU_ISSET(2,&(args->cpuset)))
 		usleep(4000);*/
+	asm volatile ("nop"::: "memory");
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
 		fail("PAPI_create_eventset falhou");
 	if (PAPI_add_events(EventSet,args->eventcodes, nevents) != PAPI_OK)
 		fail("PAPI_add_events falhou");	
 	if (PAPI_start(EventSet) != PAPI_OK)
 		fail("PAPI_start falhou");
+	asm volatile ("nop"::: "memory");
 	__m512i local __attribute__((aligned(64)));
 	__m512i acc __attribute__((aligned(64)));
 	__m512i *mem = args->mem;
@@ -122,6 +97,7 @@ void *read_stream(void* arg) {
 					acc = _mm512_add_epi64(acc, local);
 				}
 	(args->acc)[0] = acc;
+	asm volatile ("nop"::: "memory");
 	if (PAPI_stop(EventSet, args->value) != PAPI_OK)
 		fail("PAPI_stop falhou");
 	PAPI_remove_events(EventSet, args->eventcodes, nevents);
@@ -278,51 +254,48 @@ int main(int ac, char **av)
 
 	_mm_mfence();
 
-//	__m512i *mem = ((__m512i*)map);
-
-	
-	//printf("usable a: %u, usable b: %u\n", malloc_usable_size(args_a.mem), malloc_usable_size(args_b.mem));
+	asm volatile ("nop"::: "memory");
 	
 	printf("size a: %u, mem a: %p\n", args_a.size, args_a.mem);
 	printf("size b: %u, mem b: %p\n", args_b.size, args_b.mem);
+
+	__m512i *buffer;
+        buffer = _mm_malloc(BUF_SIZE, 64);
+        asm volatile ("nop"::: "memory");
+        __m512i local __attribute__((aligned(64)));
+        for(uint64_t i=0; i<BUF_SIZE/64; i++)
+        {
+                local = _mm256_set1_epi64x(i);
+                _mm256_stream_si256((buffer + i), local);
+        }
+        _mm_mfence();
+        asm volatile ("nop"::: "memory");
+        __m512i aux;
+        aux = _mm512_set1_epi64(0);
+        for (int i=0; i<BUF_SIZE/64; i++)
+                aux+= args_b.reps + tempa[0] + buffer[i];
+        printf("%lld", aux[0]);
+        asm volatile ("nop"::: "memory");
 	for(uint64_t i=0; i<args_a.size; i++)
 	{
-		//printf("i: %ld - ", i);
-		__m512i local __attribute__((aligned(64)));
 		local = _mm512_set1_epi64(i);
 		_mm512_stream_si512(&(args_a.mem[i]), local);
+	}
+	_mm_mfence();
+	for(uint64_t i=0; i<args_b.size; i++)
+	{
+		local = _mm512_set1_epi64(i);
+		_mm512_stream_si512((args_b.mem + i), local);
 	}
 	_mm_mfence();
 	for(unsigned int i=0; i<args_a.size; i++)
 		_mm_clflush((args_a.mem + i));
 	_mm_mfence();
-
-
-	for(uint64_t i=0; i<args_b.size; i++)
-	{
-		__m512i local __attribute__((aligned(64)));
-		local = _mm512_set1_epi64(i);
-		_mm512_stream_si512((args_b.mem + i), local);
-	}
-	_mm_mfence();
 	for(unsigned int i=0; i<args_b.size; i++)
 		_mm_clflush((args_b.mem + i));
-
 	_mm_mfence();
+        asm volatile ("nop"::: "memory");
 
-/*	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
-		fail("PAPI_create_eventset falhou");
-	if (PAPI_add_events(EventSet,eventcodes, 3) != PAPI_OK)
-		fail("PAPI_add_events falhou");	
-	if (PAPI_start(EventSet) != PAPI_OK)
-		fail("PAPI_start falhou");
-*/
-	/*pthread_create(&th1, NULL, warmup, &args_a);
-	pthread_create(&th2, NULL, warmup, &args_b);
-	usleep(30000);
-	pthread_cancel(th1);
-	pthread_cancel(th2);
-*/
 	pthread_create(&th1, NULL, read_stream, &args_a);
 	pthread_create(&th2, NULL, read_stream, &args_b);
 
@@ -330,10 +303,7 @@ int main(int ac, char **av)
 	pthread_join(th2, NULL);
 
 	_mm_mfence();
-/*	if (PAPI_stop(EventSet, value) != PAPI_OK)
-		fail("PAPI_stop falhou");
-	PAPI_remove_events(EventSet, eventcodes, 3);
-*/
+        asm volatile ("nop"::: "memory");
 	PAPI_shutdown();
 
     char event1[128],event2[128],event3[128];

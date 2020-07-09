@@ -284,6 +284,7 @@ int main(int ac, char **av)
 	for (int i=0; i<BUF_SIZE/32; i++) 
 		aux+= args_b.reps + tempa[0] + buffer[i];
 	printf("%lld", aux[0]);
+	asm volatile ("nop"::: "memory");
 
 	for(uint64_t i=0; i<args_a.size; i++)
 	{
