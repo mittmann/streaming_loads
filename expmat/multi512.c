@@ -11,6 +11,8 @@
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 #define BUF_SIZE 1024*1024*1024
+//#define BUF_SIZE 1024
+
 
 int nevents = 3;
 
