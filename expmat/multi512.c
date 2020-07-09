@@ -265,8 +265,8 @@ int main(int ac, char **av)
         __m512i local __attribute__((aligned(64)));
         for(uint64_t i=0; i<BUF_SIZE/64; i++)
         {
-                local = _mm256_set1_epi64x(i);
-                _mm256_stream_si256((buffer + i), local);
+                local = _mm512_set1_epi64(i);
+                _mm512_stream_si512((buffer + i), local);
         }
         _mm_mfence();
         asm volatile ("nop"::: "memory");
