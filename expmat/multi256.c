@@ -10,6 +10,7 @@
 #include <pthread.h>
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
+#define BUF_SIZE 1024*1024*1024
 
 int nevents = 3;
 
@@ -268,41 +269,38 @@ int main(int ac, char **av)
 	printf("size b: %u, mem b: %p\n", args_b.size, args_b.mem);
 
 	__m256i *buffer;
-
-	buffer = _mm_malloc(1024*1024*1024, 64);
-
+	buffer = _mm_malloc(BUF_SIZE, 64);
 	asm volatile ("nop"::: "memory");
-
 	__m256i local __attribute__((aligned(64)));
-	for(uint64_t i=0; i<16*1024*1024; i++)
+	for(uint64_t i=0; i<BUF_SIZE/32; i++)
 	{
 		local = _mm256_set1_epi64x(i);
 		_mm256_stream_si256((buffer + i), local);
 	}
 	_mm_mfence();
-
 	asm volatile ("nop"::: "memory");
 	__m256i aux;
 	aux = _mm256_set1_epi64x(0);
-	for (int i=0; i<16*1024*1024; i++) 
+	for (int i=0; i<BUF_SIZE/32; i++) 
 		aux+= args_b.reps + tempa[0] + buffer[i];
 	printf("%lld", aux[0]);
+
 	for(uint64_t i=0; i<args_a.size; i++)
 	{
 		local = _mm256_set1_epi64x(i);
 		_mm256_stream_si256((args_a.mem + i), local);
 	}
 	_mm_mfence();
-
-	
 	for(uint64_t i=0; i<args_b.size; i++)
 	{
 		local = _mm256_set1_epi64x(i);
 		_mm256_stream_si256((args_b.mem + i), local);
 	}
 	_mm_mfence();
+
 	asm volatile ("nop"::: "memory");
 	_mm_free(buffer);
+
 	for(unsigned int i=0; i<args_a.size; i+=2)
 		_mm_clflush(&(args_a.mem[i]));
 	_mm_mfence();
