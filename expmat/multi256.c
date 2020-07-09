@@ -8,7 +8,6 @@
 #include <papi.h>
 #include <string.h>
 #include <pthread.h>
-
 #define PAGE_SIZE (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 
@@ -59,12 +58,14 @@ void *read_stream(void* arg) {
 	reps = args->reps;
 	/*if (CPU_ISSET(2,&(args->cpuset)))
 		usleep(4000);*/
+	asm volatile ("nop"::: "memory");
 	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
 		fail("PAPI_create_eventset falhou");
 	if (PAPI_add_events(EventSet,args->eventcodes, nevents) != PAPI_OK)
 		fail("PAPI_add_events falhou");	
 	if (PAPI_start(EventSet) != PAPI_OK)
 		fail("PAPI_start falhou");
+	asm volatile ("nop"::: "memory");
 	__m256i local __attribute__((aligned(64)));
 	__m256i acc __attribute__((aligned(64)));
 	__m256i *mem = args->mem;
@@ -94,6 +95,7 @@ void *read_stream(void* arg) {
 					acc = _mm256_add_epi64(acc, local);
 				}
 	(args->acc)[0] = acc;
+	asm volatile ("nop"::: "memory");
 	if (PAPI_stop(EventSet, args->value) != PAPI_OK)
 		fail("PAPI_stop falhou");
 	PAPI_remove_events(EventSet, args->eventcodes, nevents);
@@ -205,6 +207,8 @@ int main(int ac, char **av)
 	
 	core1 = atoi(av[9]);
 	core2 = atoi(av[10]);
+
+///////////
 		
 ////
 
@@ -258,45 +262,56 @@ int main(int ac, char **av)
 
 	_mm_mfence();
 
-//	__m256i *mem = ((__m256i*)map);
-
-	
-	//printf("usable a: %u, usable b: %u\n", malloc_usable_size(args_a.mem), malloc_usable_size(args_b.mem));
+	asm volatile ("nop"::: "memory");
 	
 	printf("size a: %u, mem a: %p\n", args_a.size, args_a.mem);
 	printf("size b: %u, mem b: %p\n", args_b.size, args_b.mem);
-	for(uint64_t i=0; i<args_a.size; i++)
+
+	__m256i *buffer;
+
+	buffer = _mm_malloc(1024*1024*1024, 64);
+
+	asm volatile ("nop"::: "memory");
+
+	__m256i local __attribute__((aligned(64)));
+	for(uint64_t i=0; i<16*1024*1024; i++)
 	{
-		//printf("i: %ld - ", i);
-		__m256i local __attribute__((aligned(64)));
 		local = _mm256_set1_epi64x(i);
-		_mm256_stream_si256(&(args_a.mem[i]), local);
+		_mm256_stream_si256((buffer + i), local);
 	}
 	_mm_mfence();
-	for(unsigned int i=0; i<args_a.size; i+=2)
-		_mm_clflush((args_a.mem + i));
+
+	asm volatile ("nop"::: "memory");
+	__m256i aux;
+	aux = _mm256_set1_epi64x(0);
+	for (int i=0; i<16*1024*1024; i++) 
+		aux+= args_b.reps + tempa[0] + buffer[i];
+	printf("%lld", aux[0]);
+	for(uint64_t i=0; i<args_a.size; i++)
+	{
+		local = _mm256_set1_epi64x(i);
+		_mm256_stream_si256((args_a.mem + i), local);
+	}
 	_mm_mfence();
 
-
+	
 	for(uint64_t i=0; i<args_b.size; i++)
 	{
-		__m256i local __attribute__((aligned(64)));
 		local = _mm256_set1_epi64x(i);
 		_mm256_stream_si256((args_b.mem + i), local);
 	}
 	_mm_mfence();
+	asm volatile ("nop"::: "memory");
+	_mm_free(buffer);
+	for(unsigned int i=0; i<args_a.size; i+=2)
+		_mm_clflush(&(args_a.mem[i]));
+	_mm_mfence();
 	for(unsigned int i=0; i<args_b.size; i+=2)
-		_mm_clflush((args_b.mem + i));
-
+		_mm_clflush(&(args_b.mem[i]));
 	_mm_mfence();
 
-/*	if (PAPI_create_eventset(&EventSet) != PAPI_OK)
-		fail("PAPI_create_eventset falhou");
-	if (PAPI_add_events(EventSet,eventcodes, 3) != PAPI_OK)
-		fail("PAPI_add_events falhou");	
-	if (PAPI_start(EventSet) != PAPI_OK)
-		fail("PAPI_start falhou");
-*/
+	asm volatile ("nop"::: "memory");
+
 	pthread_create(&th1, NULL, read_stream, &args_a);
 	pthread_create(&th2, NULL, read_stream, &args_b);
 
@@ -304,10 +319,7 @@ int main(int ac, char **av)
 	pthread_join(th2, NULL);
 
 	_mm_mfence();
-/*	if (PAPI_stop(EventSet, value) != PAPI_OK)
-		fail("PAPI_stop falhou");
-	PAPI_remove_events(EventSet, eventcodes, 3);
-*/
+	asm volatile ("nop"::: "memory");
 	PAPI_shutdown();
 
 	char event1[128],event2[128],event3[128];
@@ -325,6 +337,7 @@ int main(int ac, char **av)
         PAPI_event_code_to_name(eventcodes[1],event2);
         PAPI_event_code_to_name(eventcodes[2],event3);
     }
+
 	printf("acc_a: %llu, reps_a: %llu, size_a: %uKB \n", (long long unsigned)(args_a.acc)[0][0], args_a.reps, args_a.size*32/1024);
 	printf("acc_b: %llu, reps_b: %llu, size_b: %uKB \n", (long long unsigned)(args_b.acc)[0][0], args_b.reps, args_b.size*32/1024);
 	if (nevents > 0 ) {
