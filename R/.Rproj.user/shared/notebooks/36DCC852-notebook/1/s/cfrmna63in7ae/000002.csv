@@ -1,7 +1,0 @@
-"0","segundos = k %>% filter(sizea==256,sizeb==0,temp==""tt"") %>% select(cyc) %>% as.numeric()/freq"
-"0","dram_joule_por_acesso=1.25/(acessos[""256"",]/segundos)"
-"0","dram_joule_por_acesso"
-"1","[1]"
-"1"," 7.229993e-09"
-"1","
-"

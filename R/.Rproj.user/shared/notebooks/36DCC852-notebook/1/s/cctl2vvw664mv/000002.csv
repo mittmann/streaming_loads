@@ -1,2 +1,0 @@
-"0","e_diff %>% filter(sizea==8, temp == ""tn"" ) %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,pkg_diff) %>% ggplot(aes(x=as.factor(sizeb), y=pkg_diff)) + geom_point() + "
-"0","   theme_bw() + xlab(""sizeb"") + geom_hline(yintercept=1)"

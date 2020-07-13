@@ -1,1 +1,0 @@
-"0","k_corr <- k %>% transform(cyc=ifelse(temp==""nt"" | temp==""nn"", cyc*(0.8), cyc)) "

@@ -1,2 +1,0 @@
-"0","e_diff <- e %>% group_by(sizea, sizeb) %>% mutate_each(funs(./.[4]), cores_diff=maxcores, pkg_diff=maxpkg, uncore_diff=maxuncore, dram_diff=maxdram, sys_diff=maxsys)"
-"0","e_diff"

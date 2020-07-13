@@ -1,4 +1,0 @@
-"0","k_sum <- rbind(k,k_inv)"
-"0","k_sum <- k_sum %>% group_by(sizea,sizeb,temp) %>% summarise(cyc=sum(cyc), l3m=sum(l3m), l3r=sum(l3r), .groups='drop')"
-"0","rm(k_inv)"
-"0","head(k_sum)"

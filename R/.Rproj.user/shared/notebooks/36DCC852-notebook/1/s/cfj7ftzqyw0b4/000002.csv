@@ -1,2 +1,0 @@
-"0","e <- e %>% select(-cores,-pkg,-uncore)"
-"0","e"

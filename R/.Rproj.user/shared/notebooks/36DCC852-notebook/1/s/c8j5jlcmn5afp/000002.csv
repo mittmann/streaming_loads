@@ -1,2 +1,0 @@
-"0"," k_diff %>% filter(sizea==256, temp==""nt"" | temp==""nn"") %>% ungroup() %>% select(sizeb,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff, color=temp)) + geom_point() + "
-"0","   theme_bw() + xlab(""sizeb"") #+ geom_hline(yintercept=1)"
