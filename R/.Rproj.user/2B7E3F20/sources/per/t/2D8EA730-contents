@@ -1,0 +1,264 @@
+---
+title: "R Notebook"
+output:
+  html_document: 
+    theme: cosmo
+  html_notebook: default
+  pdf_document: default
+---
+
+
+
+Existem diversas aplicações que não se beneficiam das caches. Quando são executadas normalmente, causam poluição de cache para as outras aplicações rodando simultaneamente e consomem energia desnecessariamente, tanto por fazer uso da cache quando não há necessidade quanto por causar slowdown das outras aplicações, fazendo o processador ficar ativo por mais tempo, além de causar mais acessos à memória devido a poluição de cache, que consomem energia.
+
+Podemos observar primeiramente o slowdown em uma thread de um microbenchmark que faz leitura e acumulação de um vetor que cabe confortavelmente na cache quando é executado simultaneamente a uma outra thread do mesmo benchrmark.
+
+Primeiro um código pra carregar os resultados em um dataframe:
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr);
+df <- read.csv("../expmat/outputs/08.07.10.mitt.csv");
+k <- df %>% select(sizea,sizeb,temp,cyca,l3ma,l3ra,cycb,l3mb,l3rb) %>%
+ group_by(sizea,sizeb,temp) %>% summarise(mcyca=min(cyca), ml3ma=min(l3ma), ml3ra=min(l3ra), mcycb=min(cycb), ml3mb=min(l3mb), ml3rb=min(l3rb), .groups='drop') %>%  as.data.frame()
+k2 <- k;
+k2$sizea = k$sizeb; k2$sizeb = k$sizea; k2$mcyca = k$mcycb; k2$mcycb = k$mcyca; 
+k2$ml3ra = k$ml3rb; k2$ml3rb = k$ml3ra; k2$ml3ma = k$ml3mb; k2$ml3mb = k$ml3ma;
+k2$temp <- replace(as.character(k2$temp), k2$temp == "nt","tmp")
+k2$temp <- replace(as.character(k2$temp), k2$temp == "tn","nt")
+k2$temp <- replace(as.character(k2$temp), k2$temp == "tmp","tn")
+combined <- rbind(k,k2)
+k <- subset( combined, select = -c(mcycb,ml3rb,ml3mb));
+k <- k %>% group_by(sizea,sizeb,temp,) %>% summarise( mcyca=mean(mcyca), ml3ra=mean(ml3ra), ml3ma=mean(ml3ma), .groups='drop');
+k <- k %>% rename (cyc = mcyca, l3r = ml3ra, l3m = ml3ma)
+k <- k[k$sizea!=0,]
+k <- k %>% mutate(sizea = sizea/1024, sizeb = sizeb/1024)
+rm(combined, k2)
+head(k)
+```
+
+Agora observando a diferença na quantidade de ciclos para executar o benchmark com 4 MB sozinho ou com outra thread lendo 256 MB simultaneamente.
+
+```{r}
+k[k$temp=="tt" & k$sizea==4 & ( k$sizeb==256 | k$sizeb==0 ),]
+```
+
+A diferença aparentemente é bem pequena. Quem sabe observando com uma aplicação que caiba com menos folga na cache, como 7MB.
+
+```{r}
+k[k$temp=="tt" & k$sizea==7 & ( k$sizeb==256 | k$sizeb==0 ),]
+```
+A diferença é pequena também. Quem sabe 8 MB então?
+
+```{r}
+k[k$temp=="tt" & k$sizea==8 & ( k$sizeb==256 | k$sizeb==0 ),]
+```
+
+
+Nesse caso realmente com a thread de 256 MB há um slowdown significativo.
+
+De quanto?
+
+Adicionando colunas para as diferenças conforme sizeb aumenta para todos sizea:
+
+```{r warning=FALSE}
+#k <- k %>% group_by(sizea,temp) %>% mutate_each(funs(./.[1]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+k_diff <- k %>% group_by(sizea) %>% mutate_each(funs(./.[4]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+# CUIDADO!! GAMBIARRA ESSE [4]
+k_diff # %>% filter(temp=="nt")# %>% head()
+```
+
+Visualizando os valores para sizea = 8 MB
+
+```{r}
+library(ggplot2)
+k_diff %>% filter(sizea==8, temp == "tt", sizeb!=0) %>% ungroup() %>% select(sizeb,cyc_diff) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff)) + geom_point() + 
+   theme_bw() + xlab("sizeb") + ylim(1,2) + geom_hline(yintercept=1)
+```
+
+Percebe-se que uma outra aplicação que acessa a memória causa um impacto negativo no desempenho que aumenta conforme o uso de memória dessa aplicação aumenta, até que ela atinge o tamanho da cache ou o tamanho da primeira aplicação.
+
+A aplicação que usa menos memória faz acessos mais frequentes a cache, de certa forma se apropriando da cache devido a política de substituição dar prioridade às linhas mais recentemente acessadas.
+
+Talvez por esse motivo as aplicaçÕes maiores não interfiram tanto, porque a aplicação menor faz acessos mais frequentes e consegue manter seu dataset na cache. Um teste interessante seria colocar um delay entre os acessos da aplicação pequena, próximo a latência de acesso a DRAM, para que tanto a aplicação que usa cache quanto a que não use exerçam a mesma pressão na cache. Isso também representaria melhor uma apresentação real, que lê os dados e faz alguma coisa com eles além de acumular o valor.
+
+Podemos observar o impacto na outra aplicação devido a essa aplicação que usa 8 MB.
+
+```{r}
+k_diff %>% filter(sizeb==8, temp == "tt") %>% ungroup() %>% select(sizea,cyc_diff) %>% ggplot(aes(x=as.factor(sizea), y=cyc_diff)) + geom_point() + 
+   theme_bw() + xlab("sizea") + ylim(1,2) + geom_hline(yintercept=1)
+```
+Podemos ver que as aplicações que usam de 1 a 6 MB são pouco afetadas por essa aplicação de 8 MB, pois elas ganham prioridade sobre a cache. As aplicações maiores são também pouco afetadas porque já não se beneficiam da cache, havendo concorrência apenas pela memória principal.
+
+
+E o que acontece com a aplicação de 8 MB se a aplicação concorrente utilizar loads não temporais?
+
+```{r}
+k_diff %>% filter(sizea==8, temp == "tt" | temp == "tn") %>% ungroup() %>% select(sizeb,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizeb") + ylim(0.99,2) + geom_hline(yintercept=1)
+```
+
+Legal, o desempenho da primeira aplicação quase sempre retorna ao normal quando a segunda aplicação passa a utilizar loads não temporais. Não retorna totalmente ao valor original porque ainda há alguma concorrência por hardware mesmo que não contamine a cache.
+
+Mas o problema é que a aplicação secundária perde muito desempenho ao utilizar os loads não temporais. 
+
+```{r}
+k_diff %>% filter(sizeb==8, temp == "nt") %>% ungroup() %>% select(sizea,cyc_diff) %>% ggplot(aes(x=as.factor(sizea), y=cyc_diff)) + geom_point() + 
+   theme_bw() + xlab("sizea") + ylim(1,6) + geom_hline(yintercept=1)
+```
+
+Piora bastante para os valores que cabem na cache. Para 16 MB, o dobro da cache, piora quase 2 vezes, e para valores maiores piora um pouco. Quanto exatamente?
+
+
+```{r}
+k_diff %>% filter(sizea==256,sizeb==8,temp=="nt") %>% ungroup() %>% select(cyc_diff) %>% as.numeric()
+```
+27.78% 
+
+A aplicação de 256 MB sozinha perde quanto por usar loads não temporais?
+
+```{r}
+k_diff %>% filter(sizea==256,sizeb==0,temp=="nt") %>% ungroup() %>% select(cyc_diff) %>% as.numeric()
+```
+
+Perde 25.4%. Podemos concluir então que nessa máquina os loads não temporais possuem uma largura de banda 25.4% menor, ou algo próximo disso. Um problema dos testes é que eles não fazem só loads mas load e acumulação. Também não leva em conta o prefetcher que existe e melhora o desempenho.
+
+É estranho porque os outros experimentos mostraram que a latência dos loads não temporais é só 6.3% pior.
+
+Voltando ao assunto que importa, como a soma dos ciclos das aplicaçÕes muda conforme os loads mudam de temporal pra não temporal?
+
+Provavelmente tem um jeito de fazer isso com uma linha em R mas como não sei vou fazer uma gambiarra.
+
+Primeiro vou gerar um dataframe invertido, onde a aplicação A e B do dataframe original são invertidas. 
+
+```{r}
+ktemp <- k %>% filter(sizeb != 0);
+k_inv <- ktemp;
+k_inv$sizea = ktemp$sizeb
+k_inv$sizeb = ktemp$sizea
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "nt","tmp")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tn","nt")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tmp","tn")
+rm(ktemp)
+```
+
+Aí juntar os dois dataframes e somar as linhas com fatores iguais.
+
+```{r}
+k_sum <- rbind(k,k_inv)
+k_sum <- k_sum %>% group_by(sizea,sizeb,temp) %>% summarise(cyc=sum(cyc), l3m=sum(l3m), l3r=sum(l3r), .groups='drop')
+rm(k_inv)
+head(k_sum)
+```
+
+Agora gerando um dataframe com a diferença de ciclos para esse dataframe
+
+```{r warning=FALSE}
+
+#k <- k %>% group_by(sizea,temp) %>% mutate_each(funs(./.[1]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+k_sum_diff <- k_sum %>% group_by(sizea) %>% mutate_each(funs(./.[4]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+# CUIDADO!! GAMBIARRA ESSE [4]
+
+head(k_sum_diff)
+```
+
+E o gráfico da diferença entre a soma dos ciclos para a aplicação A com tamanho de 8 MB e loads temporais e a aplicação B com loads temporais ou não temporais para todos os tamanhos.
+
+```{r}
+k_sum_diff %>% filter(sizea==8, temp == "tt" | temp == "tn") %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizeb")# + geom_hline(yintercept=1)
+```
+Percebe-se que para tamanhos da aplicação B de até 12 MB, o desempenho agregado das aplicações é piorado por utilizar loads não temporais na aplicação B. Para valores maiores, há algum ganho.
+Parece que o ganho é maior com a aplicação B em 32 MB.
+
+```{r warning=FALSE}
+k_sum %>% group_by(sizea,sizeb) %>% mutate_each(funs(./.[4]), -temp) %>% filter(sizeb > 16, sizea==8, temp=="tn")
+#novamente gambiarra pra normalizar pela temporalidade tt
+```
+
+Os dados mostram que com a aplicação A de 8 MB e a aplicação B de 32 MB, quando a aplicação B usa loads não temporais, a soma dos ciclos de ambas é 96% da soma dos ciclos quando ambas usam loads temporais.
+
+
+Em que casos há mais ganho?
+
+```{r warning=FALSE}
+k_sum %>% group_by(sizea,sizeb) %>% mutate_each(funs(./.[4]), -temp) %>% filter(temp=="tn") %>% arrange(cyc) %>% head(10)
+```
+
+
+Parece que só pra esses casos mesmo da aplicação A com 8 MB... Estranho.
+
+```{r}
+k %>% filter(sizea==12, sizeb==256)
+```
+
+```{r}
+k %>% filter(sizeb==12, sizea==256)
+```
+
+Realmente... quando com 256 MB usa loads não temporais perde desempenho demais. Aqueles 25.4% observados acabaram pesando na soma
+
+
+E se eu corrigisse os valores considerando que os loads não temporais não tivessem uma largura de banda 25.4% menor? Será que é válido fazer isso?
+
+Primeiro, será que essa diferença é consistente?
+
+```{r}
+ k_diff %>% filter(sizea==256, temp=="nt")
+```
+
+Parece que na verdade quando tem outra thread usando a memória também essa diferença é maior.
+
+```{r}
+ k_diff %>% filter(sizea==256, temp=="nt" | temp=="nn") %>% ungroup() %>% select(sizeb,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizeb") #+ geom_hline(yintercept=1)
+```
+Então parece que quando eu tenho uma thread só indo na memória, quando ela passa de temporal pra não temporal fica 25% mais lenta, mas se também tem outra thread indo na memória, fica em torno de 30% de diferença.
+
+
+Fazendo uma análise conservadora e multiplicando os ciclos das aplicações com load não temporal por 0.8:
+
+
+```{r}
+k_corr <- k %>% transform(cyc=ifelse(temp=="nt" | temp=="nn", cyc*(0.8), cyc)) 
+```
+
+E repetindo a análise de antes até chegar na diferença de ciclos da soma das aplicações:
+
+```{r message=FALSE, warning=FALSE}
+ktemp <- k_corr %>% filter(sizeb != 0);
+k_inv <- ktemp;
+k_inv$sizea = ktemp$sizeb
+k_inv$sizeb = ktemp$sizea
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "nt","tmp")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tn","nt")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tmp","tn")
+rm(ktemp)
+
+k_corr_diff <- k_corr %>% group_by(sizea) %>% mutate_each(funs(./.[4]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+
+k_corr_sum <- rbind(k_corr,k_inv)
+k_corr_sum <- k_corr_sum %>% group_by(sizea,sizeb,temp) %>% summarise(cyc=sum(cyc), l3m=sum(l3m), l3r=sum(l3r), .groups='drop')
+rm(k_inv)
+
+k_corr_sum_diff <- k_corr_sum %>% group_by(sizea) %>% mutate_each(funs(./.[4]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+k_corr_sum_diff %>% arrange(cyc_diff) #%>% head()
+```
+
+```{r}
+k_corr_sum_diff %>% filter(sizea==8, temp == "tt" | temp == "tn") %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizeb") # + geom_hline(yintercept=1)
+```
+
+Há ganhos para aplicação de 8 MB quando a segunda aplicação tem a partir de 12 MB.
+
+Como são os ganhos para segunda aplicação não temporal de 256 MB de acordo com o tamanho da primeira aplicação?
+
+```{r}
+k_corr_sum_diff %>% filter(sizeb==256, temp == "tt" | temp == "tn") %>% ungroup() %>% select(sizea,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizea), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizea") #+ geom_hline(yintercept=1)
+```
+
+Tem mais ganho para 8 MB mesmo, mas também algum ganho significativo até 32 MB.
+
+Mas sei lá também... não dá pra confiar muito nesses resultados de tanto de gambiarra que eu tive que fazer.

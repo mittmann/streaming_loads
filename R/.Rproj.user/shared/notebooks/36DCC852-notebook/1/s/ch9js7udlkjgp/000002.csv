@@ -1,0 +1,8 @@
+"0","ktemp <- k %>% filter(sizeb != 0);"
+"0","k_inv <- ktemp;"
+"0","k_inv$sizea = ktemp$sizeb"
+"0","k_inv$sizeb = ktemp$sizea"
+"0","k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == ""nt"",""tmp"")"
+"0","k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == ""tn"",""nt"")"
+"0","k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == ""tmp"",""tn"")"
+"0","rm(ktemp)"

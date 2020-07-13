@@ -1,0 +1,7 @@
+"0","tmp_e <- e_diff %>% select(sizea,sizeb,temp,sys_diff) %>% melt(id.vars=c(""sizea"",""sizeb"",""temp""))"
+"0","tmp_k <- kb_sum_diff %>% select(sizea,sizeb,temp,cyc_diff) %>% melt(id.vars=c(""sizea"",""sizeb"",""temp""))"
+"0","k_e <- rbind(tmp_e,tmp_k)"
+"0","rm(tmp_e,tmp_k)"
+"0",""
+"0","k_e %>%  filter(sizea==8, temp == ""tn"" ) %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,value,variable) %>% ggplot(aes(x=as.factor(sizeb), y=value, color=variable)) + geom_point() + "
+"0","   theme_bw() + xlab(""sizeb"") + geom_hline(yintercept=1)"

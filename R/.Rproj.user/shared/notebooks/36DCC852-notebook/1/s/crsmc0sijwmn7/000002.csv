@@ -1,0 +1,1 @@
+"0","kb_sum_diff  <- k_sum %>% group_by(sizea, sizeb) %>% mutate_each(funs(./.[4]), cyc_diff=cyc)"

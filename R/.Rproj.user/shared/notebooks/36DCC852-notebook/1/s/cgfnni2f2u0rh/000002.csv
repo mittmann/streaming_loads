@@ -1,0 +1,3 @@
+"0","e <- k_sum %>% mutate(energia_dram = maxcyc*dram_por_ciclo + dram*dram_por_acesso) %>% select(sizea,sizeb,temp,energia_dram) %>%  left_join(e, c(""sizea"",""sizeb"",""temp"")) "
+"0","e <- e %>% dplyr::rename(maxdram=energia_dram)"
+"0","head(e)"

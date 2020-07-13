@@ -1,0 +1,8 @@
+"0","segundos = k %>% filter(sizea==256,sizeb==256,temp==""tt"") %>% select(cyc) %>% as.numeric()/freq"
+"0","joules = e %>% filter(sizea==256,sizeb==256,temp==""tt"") %>% select(maxpkg) %>% as.numeric()*scale"
+"0","potencia = joules/segundos"
+"0","potencia"
+"1","[1]"
+"1"," 25.49076"
+"1","
+"

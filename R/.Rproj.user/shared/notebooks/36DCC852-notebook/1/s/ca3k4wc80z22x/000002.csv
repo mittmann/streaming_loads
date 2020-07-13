@@ -1,0 +1,2 @@
+"0","dram_por_acesso = dram_joule_por_acesso/scale"
+"0","dram_por_ciclo = dram_joule_por_ciclo/scale"

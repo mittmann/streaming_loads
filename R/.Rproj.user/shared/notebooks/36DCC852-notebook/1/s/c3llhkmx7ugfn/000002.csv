@@ -1,0 +1,1 @@
+"0","k_sum %>% group_by(sizea,sizeb) %>% mutate_each(funs(./.[4]), -temp) %>% filter(sizeb > 16, sizea==8, temp==""tn"")"

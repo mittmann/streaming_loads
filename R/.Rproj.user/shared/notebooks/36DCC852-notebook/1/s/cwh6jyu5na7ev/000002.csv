@@ -1,0 +1,2 @@
+"0","#esse e_diff é diferente do k_diff pq mostra a diferença pra todos em relação a versão tt e não a versao com a thread A sozinha"
+"0","e_diff <- e %>% group_by(sizea, sizeb) %>% mutate_each(funs(./.[4]), cores_diff=maxcores, pkg_diff=maxpkg, uncore_diff=maxuncore)"

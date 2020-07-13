@@ -1,0 +1,1 @@
+"0","k_sum %>% group_by(sizea,sizeb) %>% mutate_each(funs(./.[4]), -temp) %>% filter(temp==""tn"") %>% arrange(cyc) %>% head(10)"

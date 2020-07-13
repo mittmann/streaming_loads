@@ -1,0 +1,5 @@
+"0","k_diff %>% filter(sizea==256,sizeb==8,temp==""nt"") %>% ungroup() %>% select(cyc_diff) %>% as.numeric()"
+"1","[1]"
+"1"," 1.277858"
+"1","
+"

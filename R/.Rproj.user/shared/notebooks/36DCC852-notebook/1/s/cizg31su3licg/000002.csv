@@ -1,0 +1,4 @@
+"0","#k <- k %>% group_by(sizea,temp) %>% mutate_each(funs(./.[1]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)"
+"0","k_diff <- k %>% group_by(sizea) %>% mutate_each(funs(./.[4]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)"
+"0","# CUIDADO!! GAMBIARRA ESSE [4]"
+"0","k_diff # %>% filter(temp==""nt"")# %>% head()"

@@ -1,0 +1,521 @@
+---
+title: "Loads Temporais vs Não Temporais"
+output: 
+  html_notebook: 
+    theme: united
+---
+
+<h1> Introdução </h1>
+
+Existem diversas aplicações que não se beneficiam das caches. Quando são executadas normalmente, causam poluição de cache para as outras aplicações rodando simultaneamente e consomem energia desnecessariamente, tanto por fazer uso da cache quando não há necessidade quanto por causar slowdown das outras aplicações, fazendo o processador ficar ativo por mais tempo, além de causar mais acessos à memória devido a poluição de cache, que consomem energia.
+
+Para analisar o impacto de utilizar loads não temporais, desenvolvi um benchmark que faz acessos com duas threads a dois vetores, utilizando loads normais ou não temporais.
+
+A máquina usada nesses experimentos possui um processador Intel core i7 4770 com a frequência limitada em 3.4GHz, hyperthreading desligado e prefetchers de hardware desabilitados através de msr. Possui 16 GB de memória DDR3 1600 MHz em dual-channel. O sistema operacional é Ubuntu 19.10 com o kernel 5.3.0-62-generic.
+
+Para loads não temporais, foi utilizada a instrução vmovntdqa de 256 bits do AVX2, e para os loads temporais, foi utilizada a instrução vmovdqa.
+
+O kernel do benchmark consiste em ler uma posição de memória com um valor previamente definido e acumular com a instrução vpaddq. Cada acesso se dá 64 bytes após o anterior, de forma que cada acesso atinge uma linha de cache subsequente.
+
+<h1> Análise </h1>
+
+Pretendo analisar o impacto dos loads não temporais tanto no desempenho quanto no consumo energético do benchmark.
+
+<h2> Impacto no tempo de execução </h2>
+
+Primeiro um código pra carregar os resultados em um dataframe:
+```{r message=FALSE, warning=FALSE}
+suppressPackageStartupMessages(library(dplyr));
+suppressPackageStartupMessages(library(tidyr));
+suppressPackageStartupMessages(library(ggplot2));
+
+df <- read.csv("../expmat/outputs/08.07.10.mitt.csv");
+k <- df %>% select(sizea,sizeb,temp,cyca,l3ma,l3ra,cycb,l3mb,l3rb) %>%
+ group_by(sizea,sizeb,temp) %>% summarise(mcyca=min(cyca), ml3ma=min(l3ma), ml3ra=min(l3ra), mcycb=min(cycb), ml3mb=min(l3mb), ml3rb=min(l3rb), .groups='drop') %>%  as.data.frame()
+k2 <- k;
+k2$sizea = k$sizeb; k2$sizeb = k$sizea; k2$mcyca = k$mcycb; k2$mcycb = k$mcyca; 
+k2$ml3ra = k$ml3rb; k2$ml3rb = k$ml3ra; k2$ml3ma = k$ml3mb; k2$ml3mb = k$ml3ma;
+k2$temp <- replace(as.character(k2$temp), k2$temp == "nt","tmp")
+k2$temp <- replace(as.character(k2$temp), k2$temp == "tn","nt")
+k2$temp <- replace(as.character(k2$temp), k2$temp == "tmp","tn")
+combined <- rbind(k,k2)
+k <- subset( combined, select = -c(mcycb,ml3rb,ml3mb));
+k <- k %>% group_by(sizea,sizeb,temp,) %>% summarise( mcyca=mean(mcyca), ml3ra=mean(ml3ra), ml3ma=mean(ml3ma), .groups='drop');
+k <- k %>% rename (cyc = mcyca, l3r = ml3ra, l3m = ml3ma)
+k <- k[k$sizea!=0,]
+k <- k %>% mutate(sizea = sizea/1024, sizeb = sizeb/1024)
+rm(combined, k2)
+k
+```
+
+Podemos observar primeiramente o slowdown em uma thread de um microbenchmark que faz leitura e acumulação de um vetor que cabe confortavelmente na cache quando é executado simultaneamente a uma outra thread do mesmo benchmark.
+
+Observando a diferença na quantidade de ciclos para executar o benchmark com 4 MB sozinho ou com outra thread lendo 256 MB simultaneamente.
+```{r}
+k[k$temp=="tt" & k$sizea==4 & ( k$sizeb==256 | k$sizeb==0 ),]
+```
+
+A diferença aparentemente é bem pequena. Quem sabe observando com uma aplicação que caiba com menos folga na cache, como 7MB.
+```{r}
+k[k$temp=="tt" & k$sizea==7 & ( k$sizeb==256 | k$sizeb==0 ),]
+```
+
+A diferença é pequena também. Quem sabe 8 MB então?
+```{r}
+k[k$temp=="tt" & k$sizea==8 & ( k$sizeb==256 | k$sizeb==0 ),]
+```
+
+Nesse caso realmente com a thread de 256 MB há um slowdown significativo.
+
+De quanto?
+
+Adicionando colunas para as diferenças conforme sizeb aumenta para todos sizea:
+```{r warning=FALSE}
+#k <- k %>% group_by(sizea,temp) %>% mutate_each(funs(./.[1]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+k_diff <- k %>% group_by(sizea) %>% mutate_each(funs(./.[4]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+# CUIDADO!! GAMBIARRA ESSE [4]
+k_diff # %>% filter(temp=="nt")# %>% head()
+```
+
+Visualizando os valores para sizea = 8 MB:
+```{r}
+k_diff %>% filter(sizea==8, temp == "tt", sizeb!=0) %>% ungroup() %>% select(sizeb,cyc_diff) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff)) + geom_point() + 
+   theme_bw() + xlab("sizeb")  + geom_hline(yintercept=1)
+```
+
+Percebe-se que uma outra aplicação que acessa a memória causa um impacto negativo no desempenho que aumenta conforme o uso de memória dessa aplicação aumenta, até que ela atinge o tamanho da cache ou o tamanho da primeira aplicação.
+
+A aplicação que usa menos memória faz acessos mais frequentes a cache, de certa forma se apropriando da cache devido a política de substituição dar prioridade às linhas mais recentemente acessadas.
+
+Talvez por esse motivo as aplicaçÕes maiores não interfiram tanto, porque a aplicação menor faz acessos mais frequentes e consegue manter seu dataset na cache. Um teste interessante seria colocar um delay entre os acessos da aplicação pequena, próximo a latência de acesso a DRAM, para que tanto a aplicação que usa cache quanto a que não use exerçam a mesma pressão na cache. Isso também representaria melhor uma apresentação real, que lê os dados e faz alguma coisa com eles além de acumular o valor.
+
+Podemos observar o impacto na outra aplicação devido a essa aplicação que usa 8 MB.
+```{r}
+k_diff %>% filter(sizeb==8, temp == "tt") %>% ungroup() %>% select(sizea,cyc_diff) %>% ggplot(aes(x=as.factor(sizea), y=cyc_diff)) + geom_point() + 
+   theme_bw() + xlab("sizea")  + geom_hline(yintercept=1)
+```
+
+Podemos ver que as aplicações que usam de 1 a 6 MB são pouco afetadas por essa aplicação de 8 MB, pois elas ganham prioridade sobre a cache. As aplicações maiores são também pouco afetadas porque já não se beneficiam da cache, havendo concorrência apenas pela memória principal.
+
+
+E o que acontece com a aplicação de 8 MB se a aplicação concorrente utilizar loads não temporais?
+```{r}
+k_diff %>% filter(sizea==8, temp == "tt" | temp == "tn") %>% ungroup() %>% select(sizeb,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizeb")  + geom_hline(yintercept=1)
+```
+
+Legal, o desempenho da primeira aplicação quase sempre retorna ao normal quando a segunda aplicação passa a utilizar loads não temporais. Não retorna totalmente ao valor original porque ainda há alguma concorrência por hardware mesmo que não contamine a cache.
+
+Mas o problema é que a aplicação secundária perde muito desempenho ao utilizar os loads não temporais. 
+```{r}
+k_diff %>% filter(sizeb==8, temp == "nt") %>% ungroup() %>% select(sizea,cyc_diff) %>% ggplot(aes(x=as.factor(sizea), y=cyc_diff)) + geom_point() + 
+   theme_bw() + xlab("sizea")  + geom_hline(yintercept=1)
+```
+
+Piora bastante para os valores que cabem na cache. Para 16 MB, o dobro da cache, piora quase 2 vezes, e para valores maiores piora um pouco. Quanto exatamente?
+```{r}
+k_diff %>% filter(sizea==256,sizeb==8,temp=="nt") %>% ungroup() %>% select(cyc_diff) %>% as.numeric()
+```
+27.78% 
+
+A aplicação de 256 MB sozinha perde quanto por usar loads não temporais?
+```{r}
+k_diff %>% filter(sizea==256,sizeb==0,temp=="nt") %>% ungroup() %>% select(cyc_diff) %>% as.numeric()
+```
+Perde 25.4%. Podemos concluir então que nessa máquina os loads não temporais possuem uma largura de banda 25.4% menor, ou algo próximo disso. Um problema dos testes é que eles não fazem só loads mas load e acumulação. Também não leva em conta o prefetcher que existe e melhora o desempenho.
+
+É estranho porque os outros experimentos mostraram que a latência dos loads não temporais é só 6.3% pior.
+
+Voltando ao assunto que importa, como a soma dos ciclos das aplicaçÕes muda conforme os loads mudam de temporal pra não temporal?
+
+Provavelmente tem um jeito de fazer isso com uma linha em R mas como não sei vou fazer uma gambiarra.
+
+Primeiro vou gerar um dataframe invertido, onde a aplicação A e B do dataframe original são invertidas. 
+```{r}
+ktemp <- k %>% filter(sizeb != 0);
+k_inv <- ktemp;
+k_inv$sizea = ktemp$sizeb
+k_inv$sizeb = ktemp$sizea
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "nt","tmp")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tn","nt")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tmp","tn")
+rm(ktemp)
+```
+
+Aí juntar os dois dataframes e somar as linhas com fatores iguais.
+```{r}
+k_sum <- rbind(k,k_inv)
+k_sum <- k_sum %>% group_by(sizea,sizeb,temp) %>% summarise(cyc=sum(cyc), l3m=sum(l3m), l3r=sum(l3r), .groups='drop')
+rm(k_inv)
+k_sum
+```
+
+Agora gerando um dataframe com a diferença de ciclos para esse dataframe:
+```{r warning=FALSE}
+#k <- k %>% group_by(sizea,temp) %>% mutate_each(funs(./.[1]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+k_sum_diff <- k_sum %>% group_by(sizea) %>% mutate_each(funs(./.[4]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+# CUIDADO!! GAMBIARRA ESSE [4]
+k_sum_diff
+```
+
+E o gráfico da diferença entre a soma dos ciclos para a aplicação A com tamanho de 8 MB e loads temporais e a aplicação B com loads temporais ou não temporais para todos os tamanhos:
+```{r}
+k_sum_diff %>% filter(sizea==8, temp == "tt" | temp == "tn") %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizeb")# + geom_hline(yintercept=1)
+```
+
+Percebe-se que para tamanhos da aplicação B de até 12 MB, o desempenho agregado das aplicações é piorado por utilizar loads não temporais na aplicação B. Para valores maiores, há algum ganho.
+Parece que o ganho é maior com a aplicação B em 32 MB.
+```{r warning=FALSE}
+k_sum %>% group_by(sizea,sizeb) %>% mutate_each(funs(./.[4]), -temp) %>% filter(sizeb > 16, sizea==8, temp=="tn")
+#novamente gambiarra pra normalizar pela temporalidade tt
+```
+
+Os dados mostram que com a aplicação A de 8 MB e a aplicação B de 32 MB, quando a aplicação B usa loads não temporais, a soma dos ciclos de ambas é 96% da soma dos ciclos quando ambas usam loads temporais.
+
+
+Em que casos há mais ganho?
+```{r warning=FALSE}
+k_sum %>% group_by(sizea,sizeb) %>% mutate_each(funs(./.[4]), -temp) %>% filter(temp=="tn") %>% arrange(cyc) %>% head(10)
+```
+
+Parece que só pra esses casos mesmo da aplicação A com 8 MB... Estranho.
+
+E com 12 MB?
+```{r}
+k %>% filter(sizea==12, sizeb==256)
+```
+
+```{r}
+k %>% filter(sizeb==12, sizea==256)
+```
+
+Realmente... quando com 256 MB usa loads não temporais perde desempenho demais. Aqueles 25.4% observados acabaram pesando na soma.
+
+E se eu corrigisse os valores considerando que os loads não temporais não tivessem uma largura de banda 25.4% menor? Será que é válido fazer isso?
+
+Primeiro, será que essa diferença é consistente?
+```{r}
+ k_diff %>% filter(sizea==256, temp=="nt")
+```
+
+Parece que na verdade quando tem outra thread usando a memória também essa diferença é maior.
+```{r}
+ k_diff %>% filter(sizea==256, temp=="nt" | temp=="nn") %>% ungroup() %>% select(sizeb,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizeb") #+ geom_hline(yintercept=1)
+```
+
+Então parece que quando eu tenho uma thread só indo na memória, quando ela passa de temporal pra não temporal fica 25% mais lenta, mas se também tem outra thread indo na memória, fica em torno de 30% de diferença.
+
+
+Fazendo uma análise conservadora e multiplicando os ciclos das aplicações com load não temporal por 0.8 (1/1.25):
+```{r}
+k_corr <- k %>% transform(cyc=ifelse(temp=="nt" | temp=="nn", cyc*(0.8), cyc)) 
+```
+
+E repetindo a análise de antes até chegar na diferença de ciclos da soma das aplicações:
+```{r message=FALSE, warning=FALSE}
+ktemp <- k_corr %>% filter(sizeb != 0);
+k_inv <- ktemp;
+k_inv$sizea = ktemp$sizeb
+k_inv$sizeb = ktemp$sizea
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "nt","tmp")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tn","nt")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tmp","tn")
+rm(ktemp)
+
+k_corr_diff <- k_corr %>% group_by(sizea) %>% mutate_each(funs(./.[4]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+
+k_corr_sum <- rbind(k_corr,k_inv)
+k_corr_sum <- k_corr_sum %>% group_by(sizea,sizeb,temp) %>% summarise(cyc=sum(cyc), l3m=sum(l3m), l3r=sum(l3r), .groups='drop')
+rm(k_inv)
+
+k_corr_sum_diff <- k_corr_sum %>% group_by(sizea) %>% mutate_each(funs(./.[4]), cyc_diff=cyc, l3r_diff=l3r, l3m_diff=l3m, -sizeb)
+k_corr_sum_diff %>% arrange(cyc_diff) #%>% head()
+```
+
+```{r}
+k_corr_sum_diff %>% filter(sizea==8, temp == "tt" | temp == "tn") %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizeb") # + geom_hline(yintercept=1)
+```
+
+Há ganhos para aplicação de 8 MB quando a segunda aplicação tem a partir de 12 MB.
+
+Como são os ganhos para segunda aplicação não temporal de 256 MB de acordo com o tamanho da primeira aplicação?
+```{r}
+k_corr_sum_diff %>% filter(sizeb==256, temp == "tt" | temp == "tn") %>% ungroup() %>% select(sizea,cyc_diff,temp) %>% ggplot(aes(x=as.factor(sizea), y=cyc_diff, color=temp)) + geom_point() + 
+   theme_bw() + xlab("sizea") #+ geom_hline(yintercept=1)
+```
+
+Tem mais ganho para 8 MB mesmo, mas também algum ganho significativo até 32 MB.
+
+Dá pra concluir que sim, da pra ter ganhos de desempenho colocando uma aplicação com loads não temporais e deixando outra com loads temporais. 
+
+Se de alguma forma pudermos dizer que uma aplicação tem mais prioridade que a outra, poderia ter muito mais ganhos considerando essa prioridade.
+
+Também se tivesse um overhead maior na primeira aplicação, por exemplo se ela demorasse mais pra fazer cada load, acho que também teria ganhos maiores porque ela seria menos ajudada pela proteção de stream da cache, eu acho. Vou testar.
+
+Mas sei lá também... não dá pra confiar muito nesses resultados de tanto de gambiarra que eu tive que fazer e de tantos efeitos misteriosos que aparecem.
+
+Também a análise com as mínimas pra cada caso não é muito boa porque como pode ser que a cada execução uma das threads tome conta da cache, se forem de tamanhos iguais, a soma das mínimas não dá realmente a soma das duas. Tem que analisar melhor como extrair esses dados mas acho que ta bom o suficiente pra dar uma ideia mas não ta correto cientificamente.
+
+<h2> Impacto no consumo de energia </h2>
+
+Não sei bem como analisar a energia. Como os contadores medem a energia pro processador inteiro, talvez só faça sentido analisar o valor máximo entre as duas threads, que vai ser o valor da thread que terminou por último e que vai ser de fato a soma da energia das duas threads. 
+```{r message=FALSE, warning=FALSE}
+dfe <- read.csv("../expmat/outputs/11.07.10.mittrapl.csv");
+e <- dfe %>% select(sizea,sizeb,temp,coresa,pkga,coresb,pkgb) %>%
+ group_by(sizea,sizeb,temp) %>% summarise(mcoresa=min(coresa), mpkga=min(pkga), mcoresb=min(coresb), mpkgb=min(pkgb), muncorea=mpkga-mcoresa, muncoreb=mpkgb-mcoresb, .groups='drop') %>% group_by(sizea,sizeb,temp) %>% mutate(maxcores=max(mcoresa,mcoresb), maxpkg=max(mpkga,mpkgb), maxuncore=max(muncorea,muncoreb)) %>% as.data.frame()
+e2 <- e;
+e2$sizea = e$sizeb; e2$sizeb = e$sizea; 
+e2$mcoresa = e$mcoresb; e2$mpkga = e$mpkgb;
+e2$mcoresb = e$mcoresa; e2$mpkgb = e$mpkga; 
+e2$muncoreb = e$muncorea; e2$muncorea = e$muncoreb; 
+
+e2$temp <- replace(as.character(e2$temp), e2$temp == "nt","tmp")
+e2$temp <- replace(as.character(e2$temp), e2$temp == "tn","nt")
+e2$temp <- replace(as.character(e2$temp), e2$temp == "tmp","tn")
+combined <- rbind(e,e2)
+e <- subset( combined, select = -c(mcoresb,mpkgb, muncoreb));
+
+e <- e %>% group_by(sizea,sizeb,temp) %>% summarise( maxcores=mean(maxcores), maxpkg=mean(maxpkg), maxuncore=mean(maxuncore), cores=mean(mcoresa), pkg=mean(mpkga), uncore=mean(muncorea), .groups='drop');
+
+e$uncore = e$pkg - e$cores;
+
+e <- e[e$sizea!=0,]
+e <- e %>% mutate(sizea = sizea/1024, sizeb = sizeb/1024)
+rm(combined, e2)
+head(e)
+```
+
+Agora quero ver como fica o consumo de energia conforme aumenta o tamanho da segunda thread. Como pra cada tamanho eu tenho um número de repetições diferente, o único jeito que eu posso comparar é com os tamanhos fixos entre as temporalidades.
+```{r}
+#esse e_diff é diferente do k_diff pq mostra a diferença pra todos em relação a versão tt e não a versao com a thread A sozinha
+e_diff <- e %>% group_by(sizea, sizeb) %>% mutate_each(funs(./.[4]), cores_diff=maxcores, pkg_diff=maxpkg, uncore_diff=maxuncore)
+```
+
+E o gráfico mostrando como o consumo de energia muda com a segunda thread com loads não temporais com a primeira thread com 8 MB conforme o tamanho da segunda thread aumenta.
+```{r}
+e_diff %>% filter(sizea==8, temp == "tn" ) %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,pkg_diff) %>% ggplot(aes(x=as.factor(sizeb), y=pkg_diff)) + geom_point() + 
+   theme_bw() + xlab("sizeb") + geom_hline(yintercept=1)
+```
+
+E como isso se compara a diferença em ciclos? Talvez a diferença de energia é só porque tem uma diferença no tempo de execução.
+
+Preciso fazer um dataframe equivalente ao anterior para os ciclos.
+```{r}
+kb_sum_diff  <- k_sum %>% group_by(sizea, sizeb) %>% mutate_each(funs(./.[4]), cyc_diff=cyc)
+```
+
+E o gráfico semelhante ao anterior da energia.
+```{r}
+kb_sum_diff %>%  filter(sizea==8, temp == "tn" ) %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,cyc_diff) %>% ggplot(aes(x=as.factor(sizeb), y=cyc_diff)) + geom_point() + 
+   theme_bw() + xlab("sizeb") + geom_hline(yintercept=1)
+```
+
+Parece que não está igual, então tem diferenças na energia consumida ao adicionar os loads não temporais que vão além da diferença no tempo de execução.
+
+Vou tentar ver os gráficos sobrepostos:
+```{r}
+suppressPackageStartupMessages(library(reshape));
+
+tmp_e <- e_diff %>% select(sizea,sizeb,temp,pkg_diff) %>% melt(id.vars=c("sizea","sizeb","temp"))
+tmp_k <- kb_sum_diff %>% select(sizea,sizeb,temp,cyc_diff) %>% melt(id.vars=c("sizea","sizeb","temp"))
+k_e <- rbind(tmp_e,tmp_k)
+rm(tmp_e,tmp_k)
+
+k_e %>%  filter(sizea==8, temp == "tn" ) %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,value,variable) %>% ggplot(aes(x=as.factor(sizeb), y=value, color=variable)) + geom_point() + 
+   theme_bw() + xlab("sizeb") + geom_hline(yintercept=1)
+
+```
+
+O que parece é que com os loads não temporais, o tempo de execução reduz mais do que a energia, menos quando com 8 MB.
+
+Mas isso ainda não leva em conta a energia da DRAM.
+
+Até é possível acessar o contador rapl pra energia de DRAM, mas eles não aparecem como um contador do PAPI, então vou tentar fazer uma estimativa com o número de acessos à memória.
+
+Para as threads com loads não temporais, o número de acessos à memória é igual ao número de instruções de load. Como cada tamanho tem um número de repetições diferente que busca equilibrar o tempo de execução e não o número de acessos a memória, preciso inserir manualmente o número de acessos à memória para cada tamanho.
+```{r message=FALSE, warning=FALSE}
+acessos <- data.frame(val = c(0,1048576000,1048576000,1032192000,1042022400,1036451840,1061683200,1123942400,917504000,462028800,370933760,289931264,262144000,251658240,251658240), row.names = c(0,1,2,3,4,5,6,7,8,12,16,32,64,128,256))
+```
+
+Colocando uma coluna para as leituras de dram no primeiro dataframe:
+```{r}
+ k <- k %>% transform(dram=ifelse(temp=="nt" | temp=="nn", acessos[as.character(sizea),],  l3m)) 
+```
+
+E refazendo o k_sum pra conter a soma dos acessos a dram e também os ciclos da aplicação que demorou mais porque vou precisar depois:
+```{r}
+ktemp <- k %>% filter(sizeb != 0);
+k_inv <- ktemp;
+k_inv$sizea = ktemp$sizeb
+k_inv$sizeb = ktemp$sizea
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "nt","tmp")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tn","nt")
+k_inv$temp <- replace(as.character(k_inv$temp), k_inv$temp == "tmp","tn")
+rm(ktemp)
+k_sum <- rbind(k,k_inv)
+k_sum <- k_sum %>% group_by(sizea,sizeb,temp) %>% summarise(cyc=sum(cyc), l3m=sum(l3m), l3r=sum(l3r), dram=sum(dram), maxcyc=max(cyc), .groups='drop')
+rm(k_inv)
+k_sum
+```
+
+Ok mas qual é o consumo da memória? Rodando um programa que lê os msr de rapl antes e depois de um sleep de 10 segundos, dá pra concluir que o consumo de idle do sistema de acordo com esses contadores é o seguinte:
+
+<ul>
+  <li>package: 9.9  W</li>
+  <li>cores:   0.24 W</li>
+  <li>dram:    2.4  W</li>
+</ul> 
+
+Fazendo uma gambiarra, rodando o mesmo programa enquanto o benchmark roda a aplicação de 256 MB, as potências são as seguintes:
+
+<ul>
+  <li>package: 18.0  W</li>
+  <li>cores:    8.3  W</li>
+  <li>dram:     3.65 W</li>
+</ul> 
+
+Enquanto duas threads lêem 256 MB, o consumo é:
+
+<ul>
+  <li>package: 25.6  W</li>
+  <li>cores:   15.4  W</li>
+  <li>dram:     4.6  W</li>
+</ul> 
+
+Duas threads lendo 1 MB:
+
+<ul>
+  <li>package: 29.7  W</li>
+  <li>cores:   20.2  W</li>
+  <li>dram:     2.4  W</li>
+</ul>
+
+Duas threads lendo 1 MB não temporal:
+
+<ul>
+  <li>package: 24.1  W</li>
+  <li>cores:   14.3  W</li>
+  <li>dram:     4.32 W</li>
+</ul>
+
+Checando se essas medidas batem com os dados medidos com o PAPI:
+```{r}
+freq = 3.4*10^9
+scale = 2^-32
+segundos = k %>% filter(sizea==256,sizeb==0,temp=="tt") %>% select(cyc) %>% as.numeric()/freq
+joules = e %>% filter(sizea==256,sizeb==0,temp=="tt") %>% select(maxpkg) %>% as.numeric()*scale
+potencia = joules/segundos
+potencia
+```
+Ok, dá um pouco diferente mas relativamente próximo. De 18 pra 17.9 Watts.
+```{r}
+18/potencia
+```
+
+Com duas threads de 256:
+```{r}
+segundos = k %>% filter(sizea==256,sizeb==256,temp=="tt") %>% select(cyc) %>% as.numeric()/freq
+joules = e %>% filter(sizea==256,sizeb==256,temp=="tt") %>% select(maxpkg) %>% as.numeric()*scale
+potencia = joules/segundos
+potencia
+```
+
+Deu uma diferença mas também dá bem próximo: de 25.6 pra 25.48.
+```{r}
+25.6/potencia
+```
+
+Uma diferença praticamente igual a de antes.
+
+E pra duas threads de 1 MB:
+```{r}
+segundos = k %>% filter(sizea==1,sizeb==1,temp=="tt") %>% select(cyc) %>% as.numeric()/freq
+joules = e %>% filter(sizea==1,sizeb==1,temp=="tt") %>% select(maxpkg) %>% as.numeric()*scale
+potencia = joules/segundos
+potencia
+```
+E a diferença:
+```{r}
+29.7/potencia
+```
+Aí já dá uma diferença um pouco maior, mas ainda pequena o suficiente, então dá pra dizer que as duas formas de medir energia são equivalentes então eu posso usar as medidas do rapl com o papi e minhas aproximações pra energia da DRAM juntas.
+
+A aproximação que eu vou fazer pra energia da DRAM é dividir a energia consumida pela DRAM em um intervalo de tempo medida anteriormente com a quantidade de acessos à memória feitos pelo programa durante o mesmo intervalo de tempo. Existem muitas variáveis que impactam no consumo da memória mas é o melhor que dá pra fazer com o que eu tenho por enquanto.
+
+A potência da DRAM para uma thread lendo da memória era 3.65 W, e sem ler nada era 2.4 W, então conclue-se que a potência dinâmica é 1.25 W para esse caso.
+
+Para o caso com duas threads, a potência dinâmica é 1.1 W por thread, então claro que existem outros fatores que ditam o consumo de energia da memória além da quantidade de acessos, mas como aproximação vou usar o primeiro valor. 
+```{r}
+segundos = k %>% filter(sizea==256,sizeb==0,temp=="tt") %>% select(cyc) %>% as.numeric()/freq
+dram_joule_por_acesso=1.25/(acessos["256",]/segundos)
+dram_joule_por_acesso
+```
+
+Então, pra ter o consumo de energia da DRAM para uma execução, é necessário multiplicar o número de acessos a memória pelo consumo de energia por acesso calculado, e o tempo de execução pela potência de idle da DRAM.
+```{r}
+dram_joule_por_ciclo=2.4/freq
+dram_joule_por_ciclo
+```
+
+COlocando essas medidas na escala das medidas do PAPI:
+```{r}
+dram_por_acesso = dram_joule_por_acesso/scale
+dram_por_ciclo = dram_joule_por_ciclo/scale
+```
+
+E finalmente criando uma coluna para energia de dram no dataframe de energia:
+```{r}
+e <- k_sum %>% mutate(energia_dram = maxcyc*dram_por_ciclo + dram*dram_por_acesso) %>% select(sizea,sizeb,temp,energia_dram) %>%  left_join(e, c("sizea","sizeb","temp")) 
+e <- e %>% dplyr::rename(maxdram=energia_dram)
+head(e)
+```
+
+E a energia total, que é a energia do package mais a energia de dram:
+```{r}
+e$maxsys = e$maxdram + e$maxpkg
+head(e)
+```
+
+E limpando um pouco esse dataframe tirando as energias individuais:
+```{r}
+e <- e %>% select(-cores,-pkg,-uncore)
+e
+```
+
+Refazendo o e_diff com as energias novas:
+```{r}
+e_diff <- e %>% group_by(sizea, sizeb) %>% mutate_each(funs(./.[4]), cores_diff=maxcores, pkg_diff=maxpkg, uncore_diff=maxuncore, dram_diff=maxdram, sys_diff=maxsys)
+e_diff
+```
+
+E agora finalmente os gráficos sobrepostos:
+```{r}
+tmp_e <- e_diff %>% select(sizea,sizeb,temp,sys_diff) %>% melt(id.vars=c("sizea","sizeb","temp"))
+tmp_k <- kb_sum_diff %>% select(sizea,sizeb,temp,cyc_diff) %>% melt(id.vars=c("sizea","sizeb","temp"))
+k_e <- rbind(tmp_e,tmp_k)
+rm(tmp_e,tmp_k)
+
+k_e %>%  filter(sizea==8, temp == "tn" ) %>% ungroup() %>% filter(sizeb!=0) %>% select(sizeb,value,variable) %>% ggplot(aes(x=as.factor(sizeb), y=value, color=variable)) + geom_point() + 
+   theme_bw() + xlab("sizeb") + geom_hline(yintercept=1)
+```
+
+Parece que não mudou nada porque afinal o consumo energético do processador é muito maior do que o da memória e todo esse trabalho foi em vão...
+
+
+<h1> Conclusão </h1>
+
+Para alguns casos muito específicos - quando duas aplicações executam e uma thread faz reuso de dados mas não rápido o suficiente para garantir que seus dados fiquem na cache devido à política de substituição tolerante a streams, e outra thread não faz reuso de dados - dá pra ganhar muito pouco desempenho fazendo essa segunda thread utilizar loads não temporais.
+
+Se fosse possível manter a largura de banda dos loads normais para os loads não temporais, haveria ganhos mais significativos.
+
+É difícil observar ganhos de energia ao utilizar os loads não temporais. Talvez porque as caches estando em uso intenso ou sem qualquer uso tenham um consumo energético bastante semelhante, pela natureza da sua implementação física.
+
+Como um último teste, pretendo adicionar um delay entre os acessos da primeira thread, de forma com que ela não consiga re-referenciar seus dados tão rapidamente quanto a thread "streamer". Suponho que em uma situação dessas, os loads não temporais na segunda thread terão seus benefícios aumentados.
+
+
+
+
+
